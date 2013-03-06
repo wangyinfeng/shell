@@ -1,0 +1,178 @@
+"My vimrc
+"update 2012.03.25
+
+"Not compatible with vi
+set nocompatible
+
+"set VIM=d:\Vim
+source $VIMRUNTIME/vimrc.vim
+source $VIMRUNTIME/mswin.vim
+source c:/vim/vim_func.vim      "自定义函数
+"source $VIM/vim_func.vim
+
+"For windows user
+behave mswin
+
+set diffexpr=MyDiff()
+function MyDiff()
+  let opt = '-a --binary '
+  if &diffopt =~ 'icase' | let opt = opt . '-i ' | endif
+  if &diffopt =~ 'iwhite' | let opt = opt . '-b ' | endif
+  let arg1 = v:fname_in
+  if arg1 =~ ' ' | let arg1 = '"' . arg1 . '"' | endif
+  let arg2 = v:fname_new
+  if arg2 =~ ' ' | let arg2 = '"' . arg2 . '"' | endif
+  let arg3 = v:fname_out
+  if arg3 =~ ' ' | let arg3 = '"' . arg3 . '"' | endif
+  let eq = ''
+  if $VIMRUNTIME =~ ' '
+    if &sh =~ '\<cmd'
+      let cmd = '""' . $VIMRUNTIME . '\diff"'
+      let eq = '"'
+    else
+      let cmd = substitute($VIMRUNTIME, ' ', '" ', '') . '\diff"'
+    endif
+  else
+    let cmd = $VIMRUNTIME . '\diff'
+  endif
+  silent execute '!' . cmd . ' ' . opt . arg1 . ' ' . arg2 . ' > ' . arg3 . eq
+endfunction
+
+"set colorsheme
+colorscheme pablo
+
+syntax on
+set mousehide
+
+"no gui menu
+set guioptions-=m
+set guioptions-=T
+
+"no backup files
+set nobackup
+
+"set tab space
+set tabstop=4
+
+"set auto index space
+set sw=4
+
+"use space to replace tab
+set et                      "set expandtab
+
+"set command bar with 2 lines
+set laststatus=2
+
+"set guifont under windows
+set guifont=Courier_New:h12:cANSI
+
+"set window size
+set lines=12
+set columns=150
+
+"set cursor blink
+set guicursor=a:blinkon1000,a:blinkoff1000
+"C-V 列选择，若在windows下是粘贴，则列选择为C-Q
+
+"set a 'line' on line
+2match Error /\%80c/
+
+"detect file type
+filetype on
+filetype plugin on
+filetype indent on
+
+"带有如下符号的单词不要被分割换行
+set iskeyword+=_,$,@,%,#,-
+
+"启动时不显示shortmess children
+set shortmess=atl
+
+"不要闪烁
+set novisualbell
+
+"show line number
+set number
+
+au BufRead,BufNewFile *.viki set ft=viki
+
+"AutoCommand
+"新建.viki文件，自动插入文件头
+autocmd BufNewFile *.viki exec ":call SetViKiTitle()"
+"新建.c文件，自动插入文件头 NOT WORK
+autocmd BufNewFile *.c exec ":call SetCTitle()"
+"新建文件后，自动定位到文件末尾
+autocmd BufNewFile * normal G
+
+"设置实用语法方式折叠
+"set foldmethod=syntax
+"设置最大折叠深度
+"set foldnestmax=2
+set foldmethod=marker
+set fmr=/*,*/
+
+"show current execute command
+set showcmd
+"set smartindent
+"show match parenthese
+set showmatch
+
+
+"ctags
+set tags=tags;
+set autochdir           "switch vim path to current path
+
+"if MySys() == "windows"                "设定windows系统中ctags程序的位置
+"    let Tlist_Ctags_Cmd = 'ctags'
+"elseif MySys() == "linux"              "设定linux系统中ctags程序的位置
+"    let Tlist_Ctags_Cmd = '/usr/bin/ctags'
+
+let Tlist_Show_One_File = 1     "不同时显示多个文件的tag，只显示当前文件的
+let Tlist_Exit_OnlyWindow = 1   "如果taglist窗口是最后一个窗口，则退出vim
+"let Tlist_Use_Right_Window = 1  "在右侧窗口中显示taglist窗口
+"let Tlist_Auto_Open=1          "Open taglist windows when start
+let Tlist_GainFocus_On_ToggleOpen=1 "输入焦点在taglist窗口中，设置
+
+"let g:netrw_cygwin = 0
+"let g:netrw_ssh_cmd  = '"d:\Program\PuTTY\plink.exe" -batch -T -ssh'
+"let g:netrw_scp_cmd  = '"d:\Program\PuTTY\pscp.exe"  -batch -q -scp'
+"let g:netrw_sftp_cmd = '"d:\Program\PuTTY\pscp.exe"  -batch -q -sftp'
+
+"cscope
+set cscopequickfix=s-,c-,d-,i-,t-,e-
+set nocscopeverbose
+
+if !exists(":DiffOrig")
+    command DiffOrig vert new | set bt=nofile | r # | 0d_ | diffthis
+          \ | wincmd p | diffthis
+endif
+
+nmap <C-_>s :cs find s <C-R>=expand("<cword>")<CR><CR>
+nmap <C-_>g :cs find g <C-R>=expand("<cword>")<CR><CR>
+nmap <C-_>c :cs find c <C-R>=expand("<cword>")<CR><CR>
+nmap <C-_>t :cs find t <C-R>=expand("<cword>")<CR><CR>
+nmap <C-_>e :cs find e <C-R>=expand("<cword>")<CR><CR>
+nmap <C-_>f :cs find f <C-R>=expand("<cfile>")<CR><CR>
+nmap <C-_>i :cs find i <C-R>=expand("<cfile>")<CR><CR>
+nmap <C-_>d :cs find d <C-R>=expand("<cword>")<CR><CR>
+
+func! CompileRunGcc()
+exec "w"
+exec "!gcc % -o %<"
+exec "! ./%<"
+endfunc
+
+"key map
+map <F2> :!ctags -R<CR>
+"map <F3> :!cscope<CR>
+map <F4> :cw<CR>
+map <F5> :Tlist<CR>
+map <F6> :NERDTree<CR>
+
+map <F8> :DiffOrig<CR>
+
+
+map <F10>:set ff=unix<CR>
+
+cd c:\code\webos
+cs add cscope.out .
