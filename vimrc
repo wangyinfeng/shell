@@ -40,6 +40,13 @@ set shortmess=atl
 set novisualbell
 "show line number
 set number
+"hide line number
+"set number!
+
+"Not format the paste content
+"set paste
+"Auto format the paste content
+"set nopaste
 
 "set foldmethod=syntax
 "set foldnestmax=2
