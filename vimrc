@@ -1,3 +1,6 @@
+" my vimrc. 
+" update 2013.05.09
+
 set nocompatible
 
 "set colorsheme
@@ -96,6 +99,9 @@ nmap <C-_>f :cs find f <C-R>=expand("<cfile>")<CR><CR>
 nmap <C-_>i :cs find i <C-R>=expand("<cfile>")<CR><CR>
 nmap <C-_>d :cs find d <C-R>=expand("<cword>")<CR><CR>
 
+set pastetoggle=<C-P> " Ctrl-P toggles paste mode
+nnoremap <C-N> :set nonumber!<CR> "Ctrl-N toggles numbering line
+
 func! CompileRunGcc()
 exec "w"
 exec "!gcc % -o %<"
@@ -112,3 +118,5 @@ map <F7> :cs add /vobs/webos/src/cscope.out /vobs/webos/src/<CR>
 map <F8> :DiffOrig<CR>
 
 map <F10>:set ff=unix<CR>
+
+
