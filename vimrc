@@ -165,9 +165,9 @@ let g:bufExplorerUseCurrentWindow=1  " Open in new window.
 "==============================================================================
 "Linux has standard diff, no need to set the diffexpr
 if os == "Windows"
-    set diffexpr = MyDiff()
+    set diffexpr=MyDiff()
 elseif os == "Linux"
-    set diffexpr =
+    set diffexpr=
 endif
 
 function MyDiff()
