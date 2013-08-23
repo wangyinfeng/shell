@@ -4,6 +4,10 @@
 #   if <file> with version number=0, vimdiff the current change with the latest checkin.
 #   if <file> with version number!=0, vimdiff the change between version_number and version_number-1
 #   if <file> with no valid version number, exit
+#==================================================================================
+#update log:
+#2013.08.23 better look
+#==================================================================================
 
 if [ -z "$1" ]
 then
