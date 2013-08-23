@@ -4,6 +4,8 @@
 #TODO:
 #   - compare the zip file size not precise, better to get the REAL changed
 #     info.
+#   - backup the file with crontab is waste time if no change happened for
+#     years... is it possible to do the action more graceful?
 #=========================================================================
 #update log:
 #2013.08.23   - copy
