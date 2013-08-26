@@ -16,12 +16,16 @@
 NORMAL=$(tput sgr0)
 GREEN=$(tput setaf 2; tput bold)
 YELLOW=$(tput setaf 3)
+BLUE=$(tput setaf 4)
 RED=$(tput setaf 1; tput bold)
 function error_echo() {
     echo -e "$RED$*$NORMAL"
 }
 function ok_echo() {
     echo -e "$GREEN$*$NORMAL"
+}
+function blue_echo() {
+    echo -e "$BLUE$*$NORMAL"
 }
 
 #Show usage by cat, format control better than use echo
@@ -47,7 +51,7 @@ PASSWD3='qa'
 DIR3='abc'
 
 DEFAULT_FILE='bundle'
-HOST= #$HOST1
+HOST=$HOST1
 USER=$USER1
 PASSWD=$PASSWD1
 DIR=$DIR1
@@ -85,7 +89,7 @@ else
 fi
 
 echo 
-echo "Going to upload ${SRC_FILE}, delete ${DST_FILE}, and then upload..."
+blue_echo "Going to upload ${SRC_FILE}, delete ${DST_FILE}, and then upload..."
 echo
 
 ftp -v -n $HOST <<END_SCRIPT
