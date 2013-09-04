@@ -10,6 +10,7 @@
 #   - 2013.08.15 provide interactive mode for service choise
 #   - 2013.08.23 remove the dirname for remote file
 #                set echo info color
+#   - 2013.09.04 add onemore server
 #==================================================================
 
 #set the print font color, better look?
@@ -29,12 +30,6 @@ function blue_echo() {
     echo -e "$BLUE$*$NORMAL"
 }
 
-#Show usage by cat, format control better than use echo
-cat << EOF
-Usage: upload [filename]
-    Upload the specified file to the ftp server.
-EOF
-
 # service pool
 HOST1='9.111.65.61'     #Infra
 USER1='ftp'
@@ -51,6 +46,22 @@ USER3='qa'
 PASSWD3='qa'
 DIR3='abc'
 
+HOST4='9.43.101.146'    #USA
+USER4='admin'
+PASSWD4='admin'
+DIR4='tftpboot/leo'
+
+#Show usage by cat, format control better than use echo
+cat << EOF
+Usage: upload [filename]
+    Upload the specified file to the ftp server.
+    Available hosts:
+        $HOST1
+        $HOST2
+        $HOST3
+        $HOST4
+EOF
+
 DEFAULT_FILE='bundle'
 HOST=$HOST1
 USER=$USER1
@@ -65,12 +76,14 @@ then
         echo "1. $HOST1"
         echo "2. $HOST2"
         echo "3. $HOST3"
+        echo "4. $HOST4"
         echo "q. quit"
         read opt
         case $opt in
             1) HOST=$HOST1; USER=$USER1; PASSWD=$PASSWD1; DIR=$DIR1; echo "Upload file to $HOST1"; break;;
             2) HOST=$HOST2; USER=$USER2; PASSWD=$PASSWD2; DIR=$DIR2; echo "Upload file to $HOST2"; break;;
             3) HOST=$HOST3; USER=$USER3; PASSWD=$PASSWD3; DIR=$DIR3; echo "Upload file to $HOST3"; break;;
+            4) HOST=$HOST4; USER=$USER4; PASSWD=$PASSWD4; DIR=$DIR4; echo "Upload file to $HOST4"; break;;
             q) echo "Quit"; exit 1;;
             *) error_echo "$opt is not a valid option";
                echo "Press [entry] key to continue...";
@@ -104,3 +117,4 @@ bye
 END_SCRIPT
 echo
 ok_echo "Upload file ${SRC_FILE} to $HOST finished"
+
