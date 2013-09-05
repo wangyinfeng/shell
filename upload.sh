@@ -73,18 +73,16 @@ PASSWD=$PASSWD1
 DIR=$DIR1
 
 show_opt="n"
-eval set -- `getopt "hs" "$@"`
-while [ $# -gt 0 ]
+while getopts :hs OPTION
 do
-    case "$1" in
-        -h) echo "upload        Upload default file to default server";
+    case "$OPTION" in
+        h)  echo "upload        Upload default file to default server";
             echo "upload FILE   Upload a file to default server"; 
             echo "upload -s     List file server for selection"; 
             exit 1;;
-        -s) show_opt="y"; break;;
-        --) shift; break;;
-        -*) echo "$0: error - unrecognized option $1" 1>&2; exit 1;;
-        *)  break;;
+        s) show_opt="y"; break;;
+        *) echo "Invalid parameter"; exit 1;;
+        ?) echo "Invalid parameter"; exit 1;;
     esac
     shift
 done
