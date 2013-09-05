@@ -11,6 +11,7 @@
 #   - 2013.08.23 remove the dirname for remote file
 #                set echo info color
 #   - 2013.09.04 add onemore server
+#   - 2013.09.05 add interavtive mode
 #==================================================================
 
 #set the print font color, better look?
@@ -28,6 +29,9 @@ function ok_echo() {
 }
 function blue_echo() {
     echo -e "$BLUE$*$NORMAL"
+}
+function white_echo() {
+    echo -e "$WHITE$*$NORMAL"
 }
 
 # service pool
@@ -51,15 +55,15 @@ USER4='admin'
 PASSWD4='admin'
 DIR4='tftpboot/leo'
 
+HOST5='9.111.86.13'     #anonymous
+USER5=''
+PASSWD5=''
+DIR5=''
+
 #Show usage by cat, format control better than use echo
 cat << EOF
-Usage: upload [filename]
-    Upload the specified file to the ftp server.
-    Available hosts:
-        $HOST1
-        $HOST2
-        $HOST3
-        $HOST4
+Upload the specified file to the ftp server.
+    -h  show help info
 EOF
 
 DEFAULT_FILE='bundle'
@@ -68,15 +72,33 @@ USER=$USER1
 PASSWD=$PASSWD1
 DIR=$DIR1
 
-if [ -z "$HOST" ]
+show_opt="n"
+eval set -- `getopt "hs" "$@"`
+while [ $# -gt 0 ]
+do
+    case "$1" in
+        -h) echo "upload        Upload default file to default server";
+            echo "upload FILE   Upload a file to default server"; 
+            echo "upload -s     List file server for selection"; 
+            exit 1;;
+        -s) show_opt="y"; break;;
+        --) shift; break;;
+        -*) echo "$0: error - unrecognized option $1" 1>&2; exit 1;;
+        *)  break;;
+    esac
+    shift
+done
+
+if [ -z "$HOST" -o "$show_opt" == "y" ]
 then
     while :
     do
-        echo "Chose the ftp server you want to upload files:"
+        white_echo "Chose the ftp server you want to upload files:"
         echo "1. $HOST1"
         echo "2. $HOST2"
         echo "3. $HOST3"
         echo "4. $HOST4"
+        echo "5. $HOST5"
         echo "q. quit"
         read opt
         case $opt in
@@ -84,6 +106,7 @@ then
             2) HOST=$HOST2; USER=$USER2; PASSWD=$PASSWD2; DIR=$DIR2; echo "Upload file to $HOST2"; break;;
             3) HOST=$HOST3; USER=$USER3; PASSWD=$PASSWD3; DIR=$DIR3; echo "Upload file to $HOST3"; break;;
             4) HOST=$HOST4; USER=$USER4; PASSWD=$PASSWD4; DIR=$DIR4; echo "Upload file to $HOST4"; break;;
+            5) HOST=$HOST5; USER=$USER5; PASSWD=$PASSWD5; DIR=$DIR5; echo "Upload file to $HOST5"; break;;
             q) echo "Quit"; exit 1;;
             *) error_echo "$opt is not a valid option";
                echo "Press [entry] key to continue...";
@@ -92,9 +115,22 @@ then
     done
 fi
 
-SRC_FILE=$1
+if [ "$show_opt" == "y" ]
+then
+    echo "Please input filename to upload(default 'bundle'): "
+    read filename
+    if [ -z "$filename" ]
+    then
+        SRC_FILE=$DEFAULT_FILE
+    else
+        SRC_FILE=$filename
+    fi
+else
+    SRC_FILE=$1
+fi
+
 SRC_DIR=`dirname "$SRC_FILE"`
-if [ -z "$1" ]
+if [ -z "$SRC_FILE" ]
 then
     echo "Use default filename $DEFAULT_FILE "
     DST_FILE=$DEFAULT_FILE
@@ -117,4 +153,3 @@ bye
 END_SCRIPT
 echo
 ok_echo "Upload file ${SRC_FILE} to $HOST finished"
-
