@@ -81,8 +81,7 @@ do
             echo "upload -s     List file server for selection"; 
             exit 1;;
         s) show_opt="y"; break;;
-        *) echo "Invalid parameter"; exit 1;;
-        ?) echo "Invalid parameter"; exit 1;;
+        *|?) echo "Invalid parameter"; exit 1;;
     esac
     shift
 done
