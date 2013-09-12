@@ -21,7 +21,7 @@ do
          echo "     gp -w STRING   exact math";
          echo "     gp -i STRING   no case sensitivity";
          exit 1;;  
-      w) percious="y" ; shift; break;;  
+      w) precious="y" ; shift; break;;
       i) case_sensitivity="n"; shift; break;;
       *|?) echo "Invalid parameter"; exit 1;;
     esac
