@@ -1,4 +1,4 @@
-"定义viki SetTitle
+"define viki SetTitle
 func! SetViKiTitle()
 
 call setline(1, "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
@@ -17,21 +17,18 @@ call append(line(".")+11,"%ppp")
 call append(line(".")+12,"")
 endfunc
 
-"定义C函数SetTitle
+"define C SetTitle
 func! SetCTitle()
-call setline(1, "/*==========================================================")
-call append(line("."), "* File name:")
-call append(line(".")+1, " *Description:")
-call append(line(".")+2, " *")
-call append(line(".")+3, " *AU:")
-call append(line(".")+4, " *DATE:")
-call append(line(".")+5, " *Modify:")
-call append(line(".")+6, " *")
-call append(line(".")+7, "=========================================================*/")
-call append(line(".")+8, "")
+call setline(1, "/*====================================================================")
+call append(line("."), " *Description:")
+call append(line(".")+1, " *DATE:")
+call append(line(".")+2, " *Modify:")
+call append(line(".")+3, " *")
+call append(line(".")+4, "===================================================================*/")
+call append(line(".")+5, "")
 endfunc
 
-"定义C中插入注释符/**/
+"define comment insert in C
 func! InsertComment()
 call setline(line("."),"/*  */")
 endfunc
@@ -41,4 +38,3 @@ exec "w"
 exec "!gcc % -o %<"
 exec "! ./%<"
 endfunc
-
