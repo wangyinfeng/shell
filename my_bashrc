@@ -1,0 +1,13 @@
+#!/bin/bash
+# private bashrc, to be sourced by the .bashrc
+# update: 2013.11.13
+# logs:
+
+#export:
+
+
+# alias begin: 
+alias   ..="cd .."
+alias   la="ls -al"
+
+#alias end.
