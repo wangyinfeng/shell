@@ -1,9 +1,11 @@
 #!/bin/bash
-# private bashrc, to be sourced by the .bashrc
-# update: 2013.11.13
-# logs:
+# private bashrc, to be sourced by the .bashrc. 
+# DO NOT change the default .bashrc, it's better to import private
+# update: 2014.03.25
+# logs: Add some personal configuration
 
 #export:
+export PS1="[\[\033[01;31m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]]\$"
 
 
 # alias begin: 
