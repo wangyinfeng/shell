@@ -1,8 +1,7 @@
-#! /bin/bash
-#check the device OS/Kernel/CPU/Mem/MsgQue...
+#!/bin/bash
+#Check the device OS/Kernel/CPU/Mem/MsgQue...
 #===========================================================
 #TODO:
-#   - no need to print the date for every output line
 #===========================================================
 #update log:
 #2013.08.23 better look
@@ -11,9 +10,11 @@
 LOG=syscheck.log
 log()
 {
-    echo `date`:$* | tee -a ${LOG}
+#    echo `date`:$* | tee -a ${LOG}
+    echo $* | tee -a ${LOG}
 }
 
+log "`date`"
 log "========Check device basic information begin========"
 
 if [ -f /etc/SuSE-release ]
@@ -25,6 +26,10 @@ then
 else
     LINUX_TYPE=UNKNOW
 fi
+
+#/proc/sys/kernel/ostype       - get OS type
+#/proc/sys/kernel/osrelease    - get kernel version
+#/proc/sys/kernel/version      - get OS revision
 
 log " Kernel info: `uname -a`"
 log " OS info: `lsb_release -a`"
