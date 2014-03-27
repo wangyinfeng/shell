@@ -38,4 +38,5 @@ log " CPU info: `cat /proc/cpuinfo | grep name | cut -f2 -d: | uniq -c`"
 log " Kernel.msg para: msgmax-`sysctl -n kernel.msgmax` msgmnb-`sysctl -n kernel.msgmnb` msgmni-`sysctl -n kernel.msgmni`"
 log " Socket.wmem buffer: wmem_max `cat /proc/sys/net/core/wmem_max` wmem_default `cat /proc/sys/net/core/wmem_default`"
 log " Library setting:`echo $LD_LIBRARY_PATH`"
+log " Up time: "`awk '{printf("%d Day:%02d Hour:%02d Min:%02d Sec",($1/60/60/24),($1/60/60%24),($1/60%60),($1%60))}' /proc/uptime`
 log "========Check device basic information end========"
