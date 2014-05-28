@@ -1,0 +1,37 @@
+*mine.txt*      My help file
+
+"key map
+<F2> :!ctags -R                         <F7>
+<F3> :!cscope -RUbq                     <F8>
+<F4> :                                  <F9>
+<F5> :Tlist                             <F10>:set ff=unix
+<F6> :NERDTree
+
+==============================================================================
+"Ctrl+\" X
+cs find c|d|e|f|g|i|s|t name
+0 | s   symbol
+1 | g   definition
+2 | d   called function
+3 | c   calling function
+4 | t   string
+6 | e   egrep stirng
+7 | f   file
+8 | i   file include me
+==============================================================================
+set ic          "Ignore Case for search
+
+Select Row          [windows] Ctrl+Q; [Linux] Ctrl+V
+Select Line         Shift+V
+Replace             %s/SEARCH/REPLASE
+tab switch          gt | gT
+
+:A              switch between header file and corresponding file
+:AS             splits and switches 
+:AH             vertical splits and switches
+
+:%s/\s\+$//     Delete SPACE of the line
+
+==============================================================================
+vim:tw=78:fo=tcq2:isk=!-~,^*,^\|,^\":ts=8:ft=help:norl:
+
