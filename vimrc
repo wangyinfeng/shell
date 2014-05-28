@@ -6,6 +6,8 @@
 "   - change comments to english
 "   - update OS type check
 "   - meger with .vimrc
+"2014.05.28
+"   - change NERDTree to NERDTreeToggle   
 "==============================================================================
 
 "Not compatible with vi
@@ -140,7 +142,7 @@ map <F2> :!ctags -R<CR>
 "map <F3> :!cscope<CR>
 map <F4> :cw<CR>
 map <F5> :Tlist<CR>
-map <F6> :NERDTree<CR>
+map <F6> :NERDTreeToggle<CR>
 if os == "Linux"
 "    map <F7> :cs add /vobs/webos/src/cscope.out /vobs/webos/src/<CR>
 endif
