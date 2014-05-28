@@ -28,7 +28,6 @@ elseif has('unix')
     endif
 endif
 
-
 "==============================================================================
 set shortmess=atl   "not show the info about shortmess children
 
@@ -126,21 +125,53 @@ if !exists(":DiffOrig")
           \ | wincmd p | diffthis
 endif
 
-nmap <C-_>s :cs find s <C-R>=expand("<cword>")<CR><CR>
-nmap <C-_>g :cs find g <C-R>=expand("<cword>")<CR><CR>
-nmap <C-_>c :cs find c <C-R>=expand("<cword>")<CR><CR>
-nmap <C-_>t :cs find t <C-R>=expand("<cword>")<CR><CR>
-nmap <C-_>e :cs find e <C-R>=expand("<cword>")<CR><CR>
-nmap <C-_>f :cs find f <C-R>=expand("<cfile>")<CR><CR>
-nmap <C-_>i :cs find i <C-R>=expand("<cfile>")<CR><CR>
-nmap <C-_>d :cs find d <C-R>=expand("<cword>")<CR><CR>
-
 "cd c:\code\webos
 "cs add cscope.out .
 "==============================================================================
-map <F2> :!ctags -R<CR>
-"map <F3> :!cscope<CR>
-map <F4> :cw<CR>
+"Generate tags for current directory
+map <F2> :!ctags -R *<CR> 
+" ctrl+] - jump to the definition
+" ctrl+o - jump back
+" 
+map <F3> :!cscope -RUbq<CR>
+" copy from: http://jhshi.me/2013/02/20/using-cscope-inside-vim/
+if has("cscope")
+    set csprg=/usr/bin/cscope
+    set csto=0
+    set cst
+    set csverb
+    " C symbol
+    nmap <C-\>s :cs find s <C-R>=expand("<cword>")<CR><CR>
+    " definition
+    nmap <C-\>g :cs find g <C-R>=expand("<cword>")<CR><CR>
+    " functions that called by this function
+    nmap <C-\>d :cs find d <C-R>=expand("<cword>")<CR><CR>
+    " funtions that calling this function
+    nmap <C-\>c :cs find c <C-R>=expand("<cword>")<CR><CR>
+    " test string
+    nmap <C-\>t :cs find t <C-R>=expand("<cword>")<CR><CR>
+    " egrep pattern
+    nmap <C-\>e :cs find e <C-R>=expand("<cword>")<CR><CR>
+    " file
+    nmap <C-\>f :cs find f <C-R>=expand("<cfile>")<CR><CR>
+    " files #including this file
+    nmap <C-\>i :cs find i ^<C-R>=expand("<cfile>")<CR>$<CR>
+
+    " Automatically make cscope connections
+    function! LoadCscope()
+        let db = findfile("cscope.out", ".;")
+        if (!empty(db))
+            let path = strpart(db, 0, match(db, "/cscope.out$"))
+            set nocscopeverbose " suppress 'duplicate connection' error
+            exe "cs add " . db . " " . path
+            set cscopeverbose
+        endif
+    endfunction
+    au BufEnter /* call LoadCscope()
+endif
+
+"What's the function of this command?
+"map <F4> :cw<CR>
 map <F5> :Tlist<CR>
 map <F6> :NERDTreeToggle<CR>
 if os == "Linux"
