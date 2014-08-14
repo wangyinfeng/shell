@@ -112,7 +112,7 @@ then
     done
 fi
 
-if [ "$show_opt" == "y" ]
+if [ "$show_opt" == "y" -o -z "$1" ]
 then
     echo "Please input filename to upload(default 'bundle'): "
     read filename
