@@ -91,6 +91,7 @@ if version >= 500               "validate vim or vi
     set autochdir               "switch vim path to current path
 endif
 
+set fileencodings=ucs-bom,utf-8,chinese "decode utf-8
 "==============================================================================
 au BufRead,BufNewFile *.viki set ft=viki
 
