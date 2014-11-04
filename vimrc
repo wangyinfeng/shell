@@ -1,13 +1,4 @@
 "vimrc
-"Logs :
-"==============================================================================
-"update 2012.03.25
-"2013.08.15
-"   - change comments to english
-"   - update OS type check
-"   - meger with .vimrc
-"2014.05.28
-"   - change NERDTree to NERDTreeToggle   
 "==============================================================================
 
 "Not compatible with vi
@@ -20,6 +11,7 @@ if has('win32') || has('win64')
     source $VIMRUNTIME/vimrc.vim
     source $VIMRUNTIME/mswin.vim
     source c:/vim/vim_func.vim      "extend function defined
+    set fileencodings=ucs-bom,utf-8,chinese "decode utf-8
 elseif has('unix')
     let os = "Linux"
     if v:lang =~ "utf8$" || v:lang =~ "UTF-8$" "set encoding
@@ -91,7 +83,6 @@ if version >= 500               "validate vim or vi
     set autochdir               "switch vim path to current path
 endif
 
-set fileencodings=ucs-bom,utf-8,chinese "decode utf-8
 "==============================================================================
 au BufRead,BufNewFile *.viki set ft=viki
 
