@@ -1,0 +1,10 @@
+[user]
+	name = wangyinfeng
+	email = wang.batman@gmail.com
+[credential]
+	helper = store
+[push]
+	default = simple
+[i18n]
+	commitencoding = utf-8
+	logoutputencoding = gbk
