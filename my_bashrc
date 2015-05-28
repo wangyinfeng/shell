@@ -6,17 +6,20 @@
 
 #export:
 export PS1="[\[\033[01;51m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]]\$"
-
+#add time stamp to the history command
+export HISTTIMEFORMAT="%d/%m/%y %T "
 
 # alias begin: 
 alias	..="cd .."
 alias   ls="ls -Gh"
 alias   la="ls -Ghal"
 alias   ll="ls -Ghl"
-
 #alias end.
 
+#auto start when login the shell
 if [[ `uname` == "Darwin" ]]; then
-    autossh -M 1081 -D 1080 -i /Users/w/.ssh/identification -qNnt 54b5fcb35973cab7770002e0@python-mfrc531.rhcloud.com 2>/var/log/proxy-err.log &
+    if ! pgrep autossh > /dev/null; then
+        autossh -M 1081 -D 1080 -i /Users/w/.ssh/identification -qNnt 54b5fcb35973cab7770002e0@python-mfrc531.rhcloud.com 2>/var/log/proxy-err.log &
+    fi
 fi
 
