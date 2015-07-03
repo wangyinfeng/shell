@@ -11,6 +11,7 @@ if has('win32') || has('win64')
     source $VIMRUNTIME/vimrc.vim
     source $VIMRUNTIME/mswin.vim
     source c:/vim/vim_func.vim      "extend function defined
+    noremap <C-V> <C-V>             "Ctrl-V is select column
     set fileencodings=ucs-bom,utf-8,chinese "decode utf-8
 elseif has('unix')
     let os = "Linux"
