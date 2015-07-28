@@ -21,10 +21,15 @@ elseif has('unix')
     endif
 endif
 
+" Configure the terminal parameter for tmux
+if exists('$TMUX')
+    set term=screen-256color
+endif
 "==============================================================================
 set shortmess=atl   "not show the info about shortmess children
 
-colorscheme elflord "pablo
+"colorscheme elflord "row select has no background color
+colorscheme darkblue
 
 syntax on           "syntax highlight
 set mousehide       "hide mouse
@@ -95,6 +100,7 @@ autocmd BufNewFile *.c exec ":call SetCTitle()"
 "goto the end of the file when create the new file
 autocmd BufNewFile * normal G
 
+let g:vim_markdown_frontmatter=1
 "==============================================================================
 set tags=tags;
 
