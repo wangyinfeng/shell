@@ -29,7 +29,7 @@ endif
 set shortmess=atl   "not show the info about shortmess children
 
 "colorscheme elflord "row select has no background color
-colorscheme darkblue
+colorscheme koehler
 
 syntax on           "syntax highlight
 set mousehide       "hide mouse
