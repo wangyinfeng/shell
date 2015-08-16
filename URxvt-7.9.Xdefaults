@@ -1,0 +1,48 @@
+ !Rxvt.background: green
+ !Rxvt.foreground: gray
+ !Rxvt.multichar_encoding: gb2312
+ !Rxvt.saveLines: 1000
+ !Rxvt.title: Rock eXtreme VT
+ !Rxvt.font: 8*16
+ 
+ !for URxvt-unicode
+ URxvt.background:black
+ URxvt.cursorColor:green
+ URxvt.foreground:gray
+ URxvt.tintColor:lightyellow
+ URxvt.termName:rxvt
+ URxvt.shading:30
+ !URxvt.inheritPixmap:true
+ URxvt.colorBD:yellow
+ URxvt.colorUL:green
+ URxvt.mutichar_encoding:gb2312
+ URxvt.scrollBar:true
+ URxvt.scrollBar_right:true
+ URxvt.scrollBar_floating:false
+ URxvt.scrollstyle:next
+ URxvt.saveLines:1000
+ URxvt.color0:black
+ URxvt.color1:red
+ URxvt.color2:#3a5da3
+ URxvt.color3:#4b76cc
+ URxvt.color4:RoyalBlue4
+ URxvt.color5:magenta
+ URxvt.color6:#a1b5dd
+ URxvt.color7:#8a95aa
+ URxvt.color8:#616668
+ URxvt.color9:#075982
+ URxvt.color10:#0f82bc
+ URxvt.color11:#13a9f4
+ !catalog's color
+ URxvt.color12:green
+ URxvt.color13:#63c2f2
+ URxvt.color14:#6caaac
+ URxvt.color15:#dbeff9
+ URxvt.font:-adobe-courier-medium-r-normal-*-15-*-100-100-m-*-iso8859-1
+ !URxvt.font:-b&h-lucidatypewriter-medium-r-normal-*-14-*-*-*-*-*-iso8859-*
+ URxvt.mfont:-sony-*-medium-r-normal-*-16-*-*-*-c-*-gb*-*
+ !URxvt.mfont:-kc-fixed-medium-r-normal-*-16-*-*-*-c-*-gb*-0
+ URxvt.menu:/etc/X11/URxvt.menu
+ URxvt.preeditType:Root
+
+
