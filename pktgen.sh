@@ -1,7 +1,7 @@
 #!/bin/bash
+# https://www.kernel.org/doc/Documentation/networking/pktgen.txt
 
 #set -x
-
 
 function pgset()
 {
