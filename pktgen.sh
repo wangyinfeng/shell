@@ -21,12 +21,15 @@ N="$1"                          # number of TX kthreads minus one
 if [ -z "$1" ]; then
     N=0
 fi
-NCPUS="23"                       # number of CPUs on your machine minus one
+NCPUS="23"                      # number of CPUs on your machine minus one
 IF="enp7s0f0"                   # network interface to test
-#DST_IP="10.10.10.12"            # destination IP address
-#DST_MAC="90:e2:ba:68:e1:d0"     # destination MAC address
-DST_IP="10.10.10.107"            # destination IP address
+#DST_IP="10.10.10.107"           # destination IP address
+DST_MIN_IP="10.10.10.201"        # destination IP address begin
+DST_MAX_IP="10.10.10.201"        # destination IP address end
 DST_MAC="fa:16:3e:29:90:78"     # destination MAC address
+# how to send packet to specified destination? IP address not include above will also receive the packet
+#DST_MAC="00:00:00:00:00:00"     # as broadcast
+DS_MAC_COUNT="3"
 PKT_SIZE="60"                   # packet size
 PKT_COUNT="10000000"            # number of packets to send
 CLONE_SKB="10000"               # how many times a sk_buff is recycled
@@ -59,8 +62,11 @@ for cpu in ${IDX}; do
     pgset "clone_skb ${CLONE_SKB}"
     pgset "pkt_size ${PKT_SIZE}"
     pgset "delay 0"
-    pgset "dst $DST_IP"
+#    pgset "dst $DST_IP"
+    pgset "dst_min $DST_MIN_IP"
+    pgset "dst_max $DST_MAX_IP"
     pgset "dst_mac $DST_MAC"
+#    pgset "dst_mac_count $DST_MAC_COUNT"
     pgset "flag QUEUE_MAP_CPU"
 
     echo ""
@@ -81,4 +87,4 @@ for cpu in ${IDX}; do
     NUMS="${NUMS} ${TMP}"
 done
 
-echo "Total TX rate: $(echo $NUMS | tr ' ' '+' | bc)"
+echo "Total TX rate: $(echo $NUMS | tr ' ' '+' | bc) pps"
