@@ -3,7 +3,6 @@
 # packages, configure the vnc or samba...
 # Let the script to do all the boring things automatically
 
-
 install_software()
 {
     echo "Install the basic softwares......"
@@ -33,7 +32,7 @@ wait = 15' > ~/.wgetrc
     echo "Set the proxy for wget and yum done."
 }
 
-#TODO is it better to download from github?
+#is it better to download from github? - let's assume the host has no internet access
 change_vim_cfg()
 {
     echo "Change vim configuration......"
@@ -46,6 +45,14 @@ set et
 set number
 ' > ~/.vimrc
     echo "Change vim configuration done."
+}
+
+change_bash_cfg()
+{
+    echo "Change bash configutation......"
+    echo "alias ..='cd ..'" >> ~/.bashrc
+    echo "alias ll='ls -l'" >> ~/.bashrc
+    echo "Change bash configuration done."
 }
 
 #change_vim_cfg
