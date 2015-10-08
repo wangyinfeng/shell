@@ -3,6 +3,22 @@
 # packages, configure the vnc or samba...
 # Let the script to do all the boring things automatically
 
+file_exist()
+{
+    if [ -z $1 ]
+    then
+        echo "No file parameter!"
+        return -1
+    else
+        if [ -f $1 ]
+        then
+            return 0
+        else
+            return 1
+        fi
+    fi
+}
+
 install_software()
 {
     echo "Install the basic softwares......"
@@ -43,6 +59,7 @@ set tabstop=4
 set sw=4
 set et
 set number
+colorscheme koehler
 ' > ~/.vimrc
     echo "Change vim configuration done."
 }
@@ -55,4 +72,29 @@ change_bash_cfg()
     echo "Change bash configuration done."
 }
 
+change_iptables()
+{
+    echo "Change iptables configutation......"
+    echo "Change iptables configuration done."
+}
+
+disable_selinux()
+{
+    SELINUX_CFG=/etc/selinux/config
+    echo "Disable selinux......"
+    file_exist $SELINUX_CFG
+    if [ $? -ne 0 ]
+    then
+        echo "The configure file $SELINUX_CFG not exist. quit."
+        exit 1
+    fi
+
+    enable="cat $SELINUX_CFG"
+    if [[ $enable == *"enforcing"* ]]
+        sed -i 's/^SELINUX=[^ ]*/SELINUX=disabled/' $SELINUX_CFG
+    then
+        echo "Selinux not enabled, nothing done"
+    fi
+    echo "Disable selinux done"
+}
 #change_vim_cfg
