@@ -34,41 +34,68 @@ install_software()
 
 set_proxy()
 {
+    #TODO: check if configure already exist
+    $YUMCFG=/etc/yum.conf
+    $WGETRC=~/.wgetrc
     echo "Set the proxy for wget and yum......"
-    #TODO check if yum.conf exist
-    echo 'proxy=http://192.168.255.130:655' >> /etc/yum.conf
-    echo 'proxy=https://192.168.255.130:655' >> /etc/yum.conf
 
-    touch ~/.wgetrc
+    file_exist $WGETRC
+    if [ $? -ne 0 ]
+    then
+        echo "The configuration file $WGETRC not exist. Create one..."
+        touch $WGETRC
+    fi
     printf '
 http_proxy = http://192.168.255.130:655
 ftp_proxy = http://192.168.255.130:655
 use_proxy = on
-wait = 15' > ~/.wgetrc
+wait = 15' >> ~/.wgetrc
+
+    file_exist $YUMCFG
+    if [ $? -ne 0 ]
+    then
+        echo "The configuration file $YUMCFG not exist. quit."
+        exit 1
+    fi
+    echo 'proxy=http://192.168.255.130:655' >> /etc/yum.conf
+    echo 'proxy=https://192.168.255.130:655' >> /etc/yum.conf
+
     echo "Set the proxy for wget and yum done."
 }
 
 #is it better to download from github? - let's assume the host has no internet access
-change_vim_cfg()
+vim_cfg()
 {
+    VIMRC=~/.vimrc
     echo "Change vim configuration......"
-    #TODO check if file exist first
-    touch ~/.vimrc
+    file_exist $VIMRC
+    if [ $? -ne 0 ]
+    then
+        echo "The configure file $VIMRC not exist. Create one..."
+        touch $VIMRC
+    fi
     printf '
 set tabstop=4
 set sw=4
 set et
 set number
 colorscheme koehler
-' > ~/.vimrc
+' >> $VIMRC
     echo "Change vim configuration done."
 }
 
-change_bash_cfg()
+bash_cfg()
 {
+    BASHRC=~/.bashrc
     echo "Change bash configutation......"
-    echo "alias ..='cd ..'" >> ~/.bashrc
-    echo "alias ll='ls -l'" >> ~/.bashrc
+    file_exist $BASHRC
+    if [ $? -ne 0 ]
+    then
+        echo "The configure file $BASHEC not exist. Create one..."
+        touch $BASHRC
+    fi
+    echo "alias ..='cd ..'" >> $BASHRC
+    echo "alias ll='ls -l'" >> $BASHRC
     echo "Change bash configuration done."
 }
 
@@ -97,4 +124,4 @@ disable_selinux()
     fi
     echo "Disable selinux done"
 }
-#change_vim_cfg
+#vim_cfg
