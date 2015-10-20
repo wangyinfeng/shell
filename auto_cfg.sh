@@ -35,8 +35,8 @@ install_software()
 set_proxy()
 {
     #TODO: check if configure already exist
-    $YUMCFG=/etc/yum.conf
-    $WGETRC=~/.wgetrc
+    YUMCFG=/etc/yum.conf
+    WGETRC=~/.wgetrc
     echo "Set the proxy for wget and yum......"
 
     file_exist $WGETRC
