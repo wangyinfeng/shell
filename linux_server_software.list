@@ -1,0 +1,17 @@
+#For the list of install software, save the items in a standalone text file is
+#is more clear. The yum or apt-get can read the file and get list to do their
+#jobs.
+
+PyQt4
+zip
+net-tools
+wget
+openssl-devel
+kernel-devel
+gcc
+vim
+tmux
+vnc-server
+"Development Tools"
+
+groupinstall "Desktop" "Desktop Platform" "X Window System" "Fonts"
