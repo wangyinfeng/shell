@@ -96,6 +96,12 @@ bash_cfg()
     fi
     echo "alias ..='cd ..'" >> $BASHRC
     echo "alias ll='ls -l'" >> $BASHRC
+
+    echo "proxy=http://192.168.255.130:655"
+    # set http_proxy/https_proxy to allow git clone https/http://...
+    echo "http_proxy="http://192.168.255.130:655""
+    echo "https_proxy="https://192.168.255.130:655""
+
     echo "Change bash configuration done."
 }
 
