@@ -13,5 +13,7 @@ vim
 tmux
 vnc-server
 "Development Tools"
+wireshark
+wireshrk-gnome
 
 groupinstall "Desktop" "Desktop Platform" "X Window System" "Fonts"
