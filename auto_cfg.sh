@@ -99,8 +99,8 @@ bash_cfg()
 
     echo "proxy=http://192.168.255.130:655"
     # set http_proxy/https_proxy to allow git clone https/http://...
-    echo "http_proxy="http://192.168.255.130:655""
-    echo "https_proxy="https://192.168.255.130:655""
+    echo "http_proxy="http://192.168.255.130:655"" >> $BASHRC
+    echo "https_proxy="https://192.168.255.130:655"" >> $BASHRC
 
     echo "Change bash configuration done."
 }
