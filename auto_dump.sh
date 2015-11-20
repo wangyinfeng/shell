@@ -3,10 +3,25 @@
 #       echo ping result to caller
 #       upload file to server
 #       parameter to tcpdump
-#       dump file saved dir should comes from caller parameter
 #       enbale debug module, if debug echo...
+#       stop by the caller: caller pgrep ping|tcpdump then pkill all? How to upload saved files
 
-#sh pid.sh -w 10 -n eth1,eth3 -d "/tmp" -o 10.27.248.3
+#tcpdump for ping
+#caller do 
+#sh x.sh -s 100 -w 10 -n eth0,eth1 -f "icmp" -o 10.27.248.3
+#I do
+#ping -s 100 -w 10 10.27.248.3
+#tcpdump -i eth0 icmp -w /tmp/file.pcap
+#tcpdump -i eth1 icmp -w /tmp/file.pcap
+
+#tcpdump for other
+#caller do
+#sh x.sh -w 10 -n eth1,eth3 -c 100 -f "tcp and src 10.27.248.252 and dst 10.27.248.3 and src port 55854 and dst port 5903" -d "/tmp" -o 10.27.248.3
+#sh x.sh -w 10 -n eth1,eth3 -c 100 -f "tcp and "host 10.27.248.252 or host 10.27.248.3" and "port 55854 or port 5903"" -d "/tmp" -o 10.27.248.3
+#I do
+#ping -s DEFAULT -w 10 10.27.248.3
+#tcpdump -i eth1 -c 100 "tcp and "host 10.27.248.252 or host 10.27.248.3" and "port 55854 or port 5903"" -w /tmp/file.pcap
+#tcpdump -i eth3 -c 100 "tcp and "host 10.27.248.252 or host 10.27.248.3" and "port 55854 or port 5903"" -w /tmp/file.pcap
 
 usage()
 {
@@ -43,11 +58,14 @@ parameter_init()
     ping_target=localhost
 
     run_time=0
+    dump_file_total_size=0
 
     declare -a pid_to_kill=()
     declare -a nic_list=()
+    declare -a dump_file_list=()
 
     #tcpdump parameters
+    #Limit the dump file total size
     #DUMP_FILE_SIZE_LIMIT=2000000000
     DUMP_FILE_SIZE_LIMIT=6000
     DUMP_DIR="/tmp"
@@ -65,10 +83,23 @@ check_disk_space()
     fi
 }
 
+get_dump_file_totoal_size()
+{
+    dump_file_total_size=0
+    if [ "${#dump_file_list[@]}" -gt 0 ]
+    then
+        for f in ${dump_file_list[@]}
+        do
+            dump_file_size=$(stat -c%s "$f")
+            ((dump_file_total_size += dump_file_size))
+        done
+    fi
+}
+
 start_dump()
 {
     # -C file_size, unit is MB
-    #tcpdump -i $NIC $PROTO -w a.pcap -C 1 -W 1 -w $DUMP_FILE > /dev/null &
+    #tcpdump -i $NIC $PROTO -w a.pcap -C 1 -W 1 -w $dump_file > /dev/null &
     if [ ${#nic_list[@]} -le 0 ]
     then
         stop_all $ERROR_INVALID_PARA
@@ -76,14 +107,15 @@ start_dump()
 
     for nic in ${nic_list[@]}
     do
-        DUMP_FILE="$DUMP_DIR/tcpdump_`hostname`-$nic-`date +%Y%m%d%H%M%S`.pcap"
-        if [ -f $DUMP_FILE ]
+        dump_file="$DUMP_DIR/tcpdump_`hostname`-$nic-`date +%Y%m%d%H%M%S`.pcap"
+        if [ -f $dump_file ]
         then
-            rm -f $DUMP_FILE
+            rm -f $dump_file
         fi
-        touch $DUMP_FILE
+        touch $dump_file
+        dump_file_list+=($dump_file)
 
-        tcpdump -i $nic $protocol -w $DUMP_FILE > /dev/null &
+        tcpdump -i $nic $protocol -w $dump_file > /dev/null &
         pid_to_kill+=($!)
     done
 }
@@ -98,10 +130,18 @@ start_ping()
 #echo `pidof ping`
 #pgrep ping
 
-# upload the $DUMP_FILE to the specified ftp server
+# upload the $dump_file to the specified ftp server
 upload_dump()
 {
-    echo "uploading files"
+    if [ "${#dump_file_list[@]}" -gt 0 ]
+    then
+        for f in ${dump_file_list[@]}
+        do
+            echo "uploading file $f"
+        done
+    else
+        echo "No dump files saved."
+    fi
 }
 
 stop_all()
@@ -149,6 +189,9 @@ while getopts ":s:w:c:p:a:b:d:n:o:" OPT; do
         n)
             NIC_STR=${OPTARG}
             ;;
+        f)
+            DUMP_FILTER_STR=${OPTARG}
+            ;;
         o)
             ping_target=${OPTARG}
             ;;
@@ -182,8 +225,9 @@ while :
 do
     check_disk_space
 
-    DUMP_FILE_SIZE=$(stat -c%s "$DUMP_FILE")
-    if [ $DUMP_FILE_SIZE -gt $DUMP_FILE_SIZE_LIMIT ]
+    get_dump_file_totoal_size
+
+    if [ $dump_file_total_size -gt $DUMP_FILE_SIZE_LIMIT ]
     then
         stop_all $ERROR_DUMP_FILE_TOO_LARGE
     else
@@ -192,6 +236,7 @@ do
         then
             stop_all $NORMAL_TIMEOUT
         else
+            date
             sleep 1
         fi
     fi
