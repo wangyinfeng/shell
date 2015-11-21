@@ -46,12 +46,12 @@ This script run the ping command and do tcpdump.
 OPTIONS:
     -h      Help info.
     -s      Ping packet size, in byte.
-    -w      Capture timeout, in seconds.
-    -c      Capture packet number.
-    -n      NIC list to capture.
-    -f      Dump filter sting.
-    -o      The ping target IP address.
-    -d      Dump file save directory.
+    -w      Capture timeout, in seconds. Mandatory.
+    -c      Capture packet number. 
+    -n      NIC list to capture. Mandatory.
+    -f      Dump filter sting. Mandatory.
+    -o      The ping target IP address. Mandatory.
+    -d      Dump file save directory. Mandatory.
 EOF
 }
 
@@ -73,6 +73,7 @@ parameter_init()
     #capture_num=31250000
     capture_num=100000000
 
+    # mandatory parameters
     time_para_exist=false
     dir_para_exist=false
     dst_para_exist=false
@@ -92,6 +93,14 @@ parameter_init()
     DUMP_DIR="/tmp"
 
     MAX_DISK_USAGE=90
+
+    # FTP parameters
+    DUMP_FILE_SERVER=localhost
+    DUMP_SRC_FILE="*.pcap"
+    DUMP_DST_FILE="*.pcap"
+    DUMP_FILE_SERVER_USER="test"
+    DUMP_FILE_SERVER_PASS="test"
+    DUMP_FILE_DIR="date"
 }
 
 check_disk_space()
@@ -193,7 +202,6 @@ stop_upload_clean_exit()
         do
             echo "going to kill pid $p"
             kill $p &> /dev/null
-            # TODO need verify
             # double check the child process, make sure exit
             if ! ps -p $p &> /dev/null 
             then
@@ -212,6 +220,16 @@ stop_upload_clean_exit()
 
     # then exit
     exit $error_code
+}
+
+# TODO to verify
+mandatory_para_check()
+{
+    [ "$time_para_exist" == "false" ] && echo "-w parameter is mandatory" && exit $ERROR_INVALID_PARA
+    [ "$dir_para_exist" == "false" ] && echo "-d parameter is mandatory" && exit $ERROR_INVALID_PARA
+    [ "$nic_para_exist" == "false" ] && echo "-n parameter is mandatory" && exit $ERROR_INVALID_PARA
+    [ "$dst_para_exist" == "false" ] && echo "-o parameter is mandatory" && exit $ERROR_INVALID_PARA
+
 }
 
 parameter_init
@@ -256,10 +274,12 @@ while getopts ":s:w:c:n:d:f:o:h" OPT; do
     esac
 done
 
+mandatory_para_check
+
 oIFS=$IFS
 IFS=', '
 # The NIC name got by parameter -n eth0,eth1
-# "eth0,eth1"
+# save NIC device to the list
 read -ra nic_list <<< "$NIC_STR"
 IFS=$oIFS
 
