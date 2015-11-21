@@ -35,14 +35,23 @@ syntax on           "syntax highlight
 set mousehide       "hide mouse
 set guioptions-=m   "no gui menu
 set guioptions-=T
-set guifont=Courier_New:h12:cANSI   "set guifont under windows
+if os == "Windows"
+    set guifont=Courier_New:h12:cANSI   "set guifont for windows
+elseif os == "Linux"
+    set guifont=Menlo:h18   "set guifont for MAC & Linux
+endif
 set guicursor=a:blinkon1000,a:blinkoff1000  "set cursor blink
 set novisualbell                    "beep, not flash the screen
 "set visualbell                     "flash the screen instead of beep
 
+set ruler               "show line and column of cursor position
+"set window size
 if os == "Windows"
-    set lines=12        "set window size
+    set lines=12
     set columns=150
+elseif os == "Linux"
+    set lines=30
+    set columns=120
 endif
 
 set laststatus=2    "set command bar with 2 lines
