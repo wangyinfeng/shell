@@ -5,9 +5,7 @@
 
 trap 'stop_upload_clean_exit $ERROR_TERMINATE' TERM INT
 
-# TODO  -o/-w should be mandatory parameter
-#       echo ping result to caller
-#       upload file to server
+# TODO
 
 # ping and tcpdump are child process of the task script, terminate the script will 
 # terminate all child process also. Then use trap to do cleanup jobs.
@@ -28,7 +26,8 @@ trap 'stop_upload_clean_exit $ERROR_TERMINATE' TERM INT
 #tcpdump -i eth1 -c 100 tcp and (host 10.27.248.252 or host 10.27.248.3) and (port 55854 or port 5903) -w /tmp/file.pcap
 #tcpdump -i eth3 -c 100 tcp and (host 10.27.248.252 or host 10.27.248.3) and (port 55854 or port 5903) -w /tmp/file.pcap
 
-#When caller want to stop the task, send SIGTERM
+#Require all parameters are lowcase!
+#When caller want to stop the task, send SIGTERM, eg. kill -s 15 <PID>
 
 DEBUG=true
 #DEBUG=false
@@ -64,6 +63,9 @@ ERROR_DUMP_FILE_TOO_LARGE=103
 
 parameter_init()
 {
+    my_pid=$$
+    my_name=$0
+
     #default ping parameters' value
     ping_size=56
     ping_time=10
@@ -89,18 +91,26 @@ parameter_init()
     #tcpdump parameters
     #Limit the dump file total size
     #DUMP_FILE_SIZE_LIMIT=2000000000
-    DUMP_FILE_SIZE_LIMIT=60000
+    DUMP_FILE_SIZE_LIMIT=600000000
     DUMP_DIR="/tmp"
 
     MAX_DISK_USAGE=90
 
     # FTP parameters
-    DUMP_FILE_SERVER=localhost
-    DUMP_SRC_FILE="*.pcap"
-    DUMP_DST_FILE="*.pcap"
-    DUMP_FILE_SERVER_USER="test"
-    DUMP_FILE_SERVER_PASS="test"
-    DUMP_FILE_DIR="date"
+    DUMP_FILE_SERVER=10.27.76.78
+    DUMP_FILE_SERVER_USER="ftp"
+    DUMP_FILE_SERVER_PASS="ftp"
+    DUMP_FILE_DIR="pub"
+}
+
+save_my_pid()
+{
+    pid_file="$DUMP_DIR/$my_name"
+    if [ ! -f $pid_file ]
+    then
+        touch $pid_file
+    fi
+    echo $my_pid > $pid_file
 }
 
 check_disk_space()
@@ -157,7 +167,15 @@ start_ping()
 {
     #ping -i 0.1 -s $ping_size -w $ping_time $ping_target> /dev/null &
     echo "Start ping"
-    ping -s $ping_size -w $ping_time $ping_target &> /dev/null &
+    #Save ping result to a file, the caller read it when task done
+    ping_result="$DUMP_DIR/ping_result"
+    if [ -f $ping_result ]
+    then
+        echo > $ping_result
+    else
+        touch $ping_result
+    fi
+    ping -s $ping_size -w $ping_time $ping_target >> $ping_result &
     pid_to_kill+=($!)
 }
 
@@ -169,7 +187,16 @@ upload_dump()
         for f in ${dump_file_list[@]}
         do
             echo "uploading file $f"
-            cp $f /tmp/abc/
+            DUMP_DST_FILE=`basename $f`
+# upload all files by once is more efficient
+ftp -v -n $DUMP_FILE_SERVER <<END_SCRIPT
+quote USER $DUMP_FILE_SERVER_USER
+quote PASS $DUMP_FILE_SERVER_PASS
+cd $DUMP_FILE_DIR
+binary
+put ${f} ${DUMP_DST_FILE}
+bye
+END_SCRIPT
         done
     else
         echo "No dump files saved."
@@ -216,23 +243,23 @@ stop_upload_clean_exit()
     # upload saved files
     upload_dump
     # remove all temp files
-    #remove_dump
+    remove_dump
 
     # then exit
     exit $error_code
 }
 
-# TODO to verify
 mandatory_para_check()
 {
-    [ "$time_para_exist" == "false" ] && echo "-w parameter is mandatory" && exit $ERROR_INVALID_PARA
-    [ "$dir_para_exist" == "false" ] && echo "-d parameter is mandatory" && exit $ERROR_INVALID_PARA
-    [ "$nic_para_exist" == "false" ] && echo "-n parameter is mandatory" && exit $ERROR_INVALID_PARA
-    [ "$dst_para_exist" == "false" ] && echo "-o parameter is mandatory" && exit $ERROR_INVALID_PARA
+    [ "$time_para_exist" == "false" ] && echo "dump time -w parameter is mandatory" && exit $ERROR_INVALID_PARA
+    [ "$dir_para_exist" == "false" ] && echo "dump dir -d parameter is mandatory" && exit $ERROR_INVALID_PARA
+    [ "$nic_para_exist" == "false" ] && echo "NIC device -n parameter is mandatory" && exit $ERROR_INVALID_PARA
+    [ "$dst_para_exist" == "false" ] && echo "target address -o parameter is mandatory" && exit $ERROR_INVALID_PARA
 
 }
 
 parameter_init
+save_my_pid
 
 while getopts ":s:w:c:n:d:f:o:h" OPT; do
     case "$OPT" in
@@ -290,7 +317,12 @@ IFS=$oIFS
 
 # Start tcpdump before ping
 start_dump
-start_ping
+# if ping test or specify protocol is icmp or all, do ping
+#[[ $DUMP_FILTER_STR =~ icmp ]] || [[ $DUMP_FILTER_STR =~ all ]] && echo $BASH_REMATCH
+if [[ $DUMP_FILTER_STR =~ icmp ]] || [[ $DUMP_FILTER_STR =~ all ]] 
+then
+    start_ping
+fi
 
 while :
 do
@@ -307,7 +339,6 @@ do
         then
             stop_upload_clean_exit $NORMAL_TIMEOUT
         else
-            #date
             sleep 1
         fi
     fi
