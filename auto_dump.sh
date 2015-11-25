@@ -10,21 +10,13 @@ trap 'stop_upload_clean_exit $ERROR_TERMINATE' TERM INT
 # ping and tcpdump are child process of the task script, terminate the script will 
 # terminate all child process also. Then use trap to do cleanup jobs.
 
-#tcpdump for ping
-#caller do 
-#sh x.sh -s 100 -w 10 -n eth0,eth1 -f "icmp" -d "/tmp" -o 10.27.248.3
-#I do
-#ping -s 100 -w 10 10.27.248.3
-#tcpdump -i eth0 icmp -w /tmp/file.pcap
-#tcpdump -i eth1 icmp -w /tmp/file.pcap
-
-#tcpdump for other
 #caller do
-#sh x.sh -w 10 -n eth1,eth3 -c 100 -f "tcp and ( host 10.27.248.252 or host 10.27.248.3 ) and ( port 55854 or port 5903 )" -d "/tmp" -o 10.27.248.3
+# "icmp or" append by salt to the filter string
+#sh x.sh -w 10 -n eth1,eth3 -c 100 -s 1000 -f "icmp or tcp and ( host 10.27.248.252 or host 10.27.248.3 ) and ( port 55854 or port 5903 )" -d "/tmp" -o 10.27.248.3
 #I do
-#ping -s DEFAULT -w 10 10.27.248.3
-#tcpdump -i eth1 -c 100 tcp and (host 10.27.248.252 or host 10.27.248.3) and (port 55854 or port 5903) -w /tmp/file.pcap
-#tcpdump -i eth3 -c 100 tcp and (host 10.27.248.252 or host 10.27.248.3) and (port 55854 or port 5903) -w /tmp/file.pcap
+#ping -s 1000 -w 10 10.27.248.3
+#tcpdump -i eth1 -c 100 icmp or tcp and (host 10.27.248.252 or host 10.27.248.3) and (port 55854 or port 5903) -w /tmp/file.pcap
+#tcpdump -i eth3 -c 100 icmp or tcp and (host 10.27.248.252 or host 10.27.248.3) and (port 55854 or port 5903) -w /tmp/file.pcap
 
 #Require all parameters are lowcase!
 #When caller want to stop the task, send SIGTERM, eg. kill -s 15 <PID>
@@ -55,11 +47,11 @@ EOF
 }
 
 EXIT_OK=0
-NORMAL_TIMEOUT=1
-ERROR_TERMINATE=100
-ERROR_INVALID_PARA=101
-ERROR_DISK_FULL=102
-ERROR_DUMP_FILE_TOO_LARGE=103
+NORMAL_TIMEOUT=1                # Task done due to time out
+ERROR_TERMINATE=100             # Task be terminated
+ERROR_INVALID_PARA=101          # Task exit due to invalid parameter
+ERROR_DISK_FULL=102             # Task exit due to not enough free disk space
+ERROR_DUMP_FILE_TOO_LARGE=103   # Task exit due to dump file larger than 2GB
 
 parameter_init()
 {
@@ -115,10 +107,10 @@ save_my_pid()
 
 check_disk_space()
 {
-    current_usage=$(df -k /tmp | tail -1 | awk '{print $4}' | tr -d "%")
+    current_usage=$(df -k $DUMP_DIR | grep -v ^File | grep -o '[^ ]*%' | tr -d "%")
     if [ $current_usage -ge $MAX_DISK_USAGE ]
     then
-        echo "No more free disk space!"
+        echo "No more free disk space! Current usage $current_usage"
         stop_upload_clean_exit $ERROR_DISK_FULL
     fi
 }
@@ -165,7 +157,6 @@ start_dump()
 
 start_ping()
 {
-    #ping -i 0.1 -s $ping_size -w $ping_time $ping_target> /dev/null &
     echo "Start ping"
     #Save ping result to a file, the caller read it when task done
     ping_result="$DUMP_DIR/ping_result"
@@ -318,11 +309,12 @@ IFS=$oIFS
 # Start tcpdump before ping
 start_dump
 # if ping test or specify protocol is icmp or all, do ping
-#[[ $DUMP_FILTER_STR =~ icmp ]] || [[ $DUMP_FILTER_STR =~ all ]] && echo $BASH_REMATCH
-if [[ $DUMP_FILTER_STR =~ icmp ]] || [[ $DUMP_FILTER_STR =~ all ]] 
-then
-    start_ping
-fi
+#if [[ $DUMP_FILTER_STR =~ icmp ]] || [[ $DUMP_FILTER_STR =~ all ]] 
+#then
+#    start_ping
+#fi
+#start ping anyway
+start_ping
 
 while :
 do
