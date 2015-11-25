@@ -11,7 +11,6 @@ trap 'stop_upload_clean_exit $ERROR_TERMINATE' TERM INT
 # terminate all child process also. Then use trap to do cleanup jobs.
 
 #caller do
-# "icmp or" append by salt to the filter string
 #sh x.sh -w 10 -n eth1,eth3 -c 100 -s 1000 -f "icmp or tcp and ( host 10.27.248.252 or host 10.27.248.3 ) and ( port 55854 or port 5903 )" -d "/tmp" -o 10.27.248.3
 #I do
 #ping -s 1000 -w 10 10.27.248.3
@@ -250,7 +249,6 @@ mandatory_para_check()
 }
 
 parameter_init
-save_my_pid
 
 while getopts ":s:w:c:n:d:f:o:h" OPT; do
     case "$OPT" in
@@ -306,6 +304,7 @@ IFS=$oIFS
 #   echo $i 
 #done
 
+save_my_pid
 # Start tcpdump before ping
 start_dump
 # if ping test or specify protocol is icmp or all, do ping
