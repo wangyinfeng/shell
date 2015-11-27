@@ -2,6 +2,7 @@
 #set -e 
 #Exit immediately if a simple command exits with a non-zero status
 #set -xv
+set -x
 
 trap 'stop_upload_clean_exit $ERROR_TERMINATE' TERM INT
 
@@ -46,16 +47,17 @@ EOF
 }
 
 EXIT_OK=0
-NORMAL_TIMEOUT=1                # Task done due to time out
+NORMAL_TIMEOUT=0                # Task done due to time out
 ERROR_TERMINATE=100             # Task be terminated
 ERROR_INVALID_PARA=101          # Task exit due to invalid parameter
 ERROR_DISK_FULL=102             # Task exit due to not enough free disk space
 ERROR_DUMP_FILE_TOO_LARGE=103   # Task exit due to dump file larger than 2GB
+ERROR_UPLOAD_FILE=110           # Error happened when upload dump files
 
 parameter_init()
 {
     my_pid=$$
-    my_name=$0
+    my_name=`basename $0`
 
     #default ping parameters' value
     ping_size=56
@@ -74,6 +76,7 @@ parameter_init()
 
     run_time=0
     dump_file_total_size=0
+    dump_file_upload_result=0
 
     declare -a pid_to_kill=()
     declare -a nic_list=()
@@ -88,15 +91,15 @@ parameter_init()
     MAX_DISK_USAGE=90
 
     # FTP parameters
-    DUMP_FILE_SERVER=10.27.76.78
-    DUMP_FILE_SERVER_USER="ftp"
-    DUMP_FILE_SERVER_PASS="ftp"
-    DUMP_FILE_DIR="pub"
+    DUMP_FILE_SERVER=10.19.251.27
+    DUMP_FILE_SERVER_USER="test"
+    DUMP_FILE_SERVER_PASS="test"
+    DUMP_FILE_DIR="/tcpdump"
 }
 
 save_my_pid()
 {
-    pid_file="$DUMP_DIR/$my_name"
+    pid_file="$DUMP_DIR/$my_name.pid"
     if [ ! -f $pid_file ]
     then
         touch $pid_file
@@ -169,8 +172,25 @@ start_ping()
     pid_to_kill+=($!)
 }
 
-# upload the dump file to the specified ftp server
-upload_dump()
+# upload the dump file to the specified ftp server by curl
+curl_upload_dump()
+{
+    if [ "${#dump_file_list[@]}" -gt 0 ]
+    then
+        for f in ${dump_file_list[@]}
+        do
+            echo "uploading file $f"
+            DUMP_DST_FILE=`basename $f`
+            curl -T $f -s ftp://${DUMP_FILE_SERVER_USER}:${DUMP_FILE_SERVER_PASS}@${DUMP_FILE_SERVER}${DUMP_FILE_DIR}/${DUMP_DST_FILE}
+            dump_file_upload_result=$?
+        done
+    else
+        echo "No dump files saved."
+    fi
+}
+
+# upload the dump file to the specified ftp server by ftp
+ftp_upload_dump()
 {
     if [ "${#dump_file_list[@]}" -gt 0 ]
     then
@@ -231,7 +251,8 @@ stop_upload_clean_exit()
     sleep 1
 
     # upload saved files
-    upload_dump
+    #ftp_upload_dump
+    curl_upload_dump
     # remove all temp files
     remove_dump
 
@@ -304,7 +325,8 @@ IFS=$oIFS
 #   echo $i 
 #done
 
-save_my_pid
+# Salt is able to return the script pid, no need to save to file.
+#save_my_pid
 # Start tcpdump before ping
 start_dump
 # if ping test or specify protocol is icmp or all, do ping
@@ -335,6 +357,14 @@ do
     fi
 done
 
-upload_dump
-exit 0
+#ftp_upload_dump
+curl_upload_dump
+
+# TODO more check... the tcpdump start success?
+if [ $dump_file_upload_result -ne 0 ]
+then
+    exit $ERROR_UPLOAD_FILE
+else
+    exit $EXIT_OK
+fi
 
