@@ -1,12 +1,28 @@
 #!/bin/bash
+#==================================================
+# FILE: auto_dump.sh
+# Version: 1.0
+# CREATED: 2015/11/30   wangyinfeng(15061252)
+# UPDATE: 2015/12/02    wangyinfeng(15061252)
+# DESCRIPTION: script for network traffic analysis
+# PARAMETER: 
+#    -h      Help info.
+#    -s      Ping packet size, in byte.
+#    -w      Capture timeout, in seconds. Mandatory.
+#    -c      Capture packet number. 
+#    -n      NIC list to capture. Mandatory.
+#    -f      Dump filter sting. Mandatory.
+#    -o      The ping target IP address. Mandatory.
+#    -d      Dump file save directory. Mandatory.
+#--------------------------------------------------
 #set -e 
 #Exit immediately if a simple command exits with a non-zero status
 #set -xv
-#set -x
 
 trap 'stop_upload_clean_exit $NORMAL_TERMINATE' TERM INT KILL
 
 # TODO
+#       more check... the tcpdump start success?
 
 # ping and tcpdump are child process of the task script, terminate the script will 
 # terminate all child process also. Then use trap to do cleanup jobs.
@@ -99,7 +115,6 @@ parameter_init()
     DUMP_FILE_DIR="/tcpdump"
 }
 
-# TODO verify
 hack_to_terminate()
 {
     # check the ppid exist or not, if ppid was terminated...
@@ -153,7 +168,7 @@ start_dump()
 {
     # -C file_size, unit is MB
     #tcpdump -i $NIC $PROTO -w a.pcap -C 1 -W 1 -w $dump_file > /dev/null &
-    if [ ${#nic_list[@]} -le 0 ]
+    if [ "${#nic_list[@]}" -le 0 ]
     then
         debug_echo "No NIC is provided!" >&2
         stop_upload_clean_exit $ERROR_INVALID_PARA
@@ -342,11 +357,6 @@ IFS=', '
 read -ra nic_list <<< "$NIC_STR"
 IFS=$oIFS
 
-#for i in ${nic_list[@])}
-#do
-#   echo $i 
-#done
-
 # Salt is able to return the script pid, no need to save to file.
 #save_my_pid
 # Start tcpdump before ping
@@ -385,9 +395,9 @@ do
     fi
 done
 
+# Should never come here!
 #ftp_upload_dump
 curl_upload_dump
-
-# TODO more check... the tcpdump start success?
+remove_dump
 exit $EXIT_OK
 
