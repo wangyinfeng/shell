@@ -2,9 +2,9 @@
 #set -e 
 #Exit immediately if a simple command exits with a non-zero status
 #set -xv
-set -x
+#set -x
 
-trap 'stop_upload_clean_exit $ERROR_TERMINATE' TERM INT
+trap 'stop_upload_clean_exit $NORMAL_TERMINATE' TERM INT KILL
 
 # TODO
 
@@ -21,9 +21,9 @@ trap 'stop_upload_clean_exit $ERROR_TERMINATE' TERM INT
 #Require all parameters are lowcase!
 #When caller want to stop the task, send SIGTERM, eg. kill -s 15 <PID>
 
-DEBUG=true
-#DEBUG=false
-echo(){
+#DEBUG=true
+DEBUG=false
+debug_echo(){
   [[ "$DEBUG" == true ]] && builtin echo $@
 }
 
@@ -48,7 +48,7 @@ EOF
 
 EXIT_OK=0
 NORMAL_TIMEOUT=0                # Task done due to time out
-ERROR_TERMINATE=100             # Task be terminated
+NORMAL_TERMINATE=0               # Task be terminated
 ERROR_INVALID_PARA=101          # Task exit due to invalid parameter
 ERROR_DISK_FULL=102             # Task exit due to not enough free disk space
 ERROR_DUMP_FILE_TOO_LARGE=103   # Task exit due to dump file larger than 2GB
@@ -57,6 +57,8 @@ ERROR_UPLOAD_FILE=110           # Error happened when upload dump files
 parameter_init()
 {
     my_pid=$$
+    #my_ppid=$PPID
+    my_ppid=`ps -o ppid $my_pid | grep -v PPID`
     my_name=`basename $0`
 
     #default ping parameters' value
@@ -97,6 +99,22 @@ parameter_init()
     DUMP_FILE_DIR="/tcpdump"
 }
 
+# TODO verify
+hack_to_terminate()
+{
+    # check the ppid exist or not, if ppid was terminated...
+    ps -p $my_ppid  &> /dev/null
+    # ppid not exist
+    if [ $? -ne 0 ]
+    then
+        if [ $my_ppid -gt 1 ]
+        then
+            stop_upload_clean_exit $NORMAL_TERMINATE
+        fi
+    #else ppid exist, continue running...
+    fi
+}
+
 save_my_pid()
 {
     pid_file="$DUMP_DIR/$my_name.pid"
@@ -112,7 +130,7 @@ check_disk_space()
     current_usage=$(df -k $DUMP_DIR | grep -v ^File | grep -o '[^ ]*%' | tr -d "%")
     if [ $current_usage -ge $MAX_DISK_USAGE ]
     then
-        echo "No more free disk space! Current usage $current_usage"
+        debug_echo "No more free disk space! Current usage $current_usage" >&2
         stop_upload_clean_exit $ERROR_DISK_FULL
     fi
 }
@@ -128,7 +146,7 @@ get_dump_file_totoal_size()
             ((dump_file_total_size += dump_file_size))
         done
     fi
-    echo "Total dump file size: $dump_file_total_size"
+    debug_echo "Total dump file size: $dump_file_total_size"
 }
 
 start_dump()
@@ -137,7 +155,7 @@ start_dump()
     #tcpdump -i $NIC $PROTO -w a.pcap -C 1 -W 1 -w $dump_file > /dev/null &
     if [ ${#nic_list[@]} -le 0 ]
     then
-        echo "No NIC is provided!"
+        debug_echo "No NIC is provided!" >&2
         stop_upload_clean_exit $ERROR_INVALID_PARA
     fi
 
@@ -151,7 +169,7 @@ start_dump()
         touch $dump_file
         dump_file_list+=($dump_file)
 
-        echo "Start tcpdump for NIC: $nic"
+        debug_echo "Start tcpdump for NIC: $nic"
         tcpdump -i $nic -c $capture_num $DUMP_FILTER_STR -w $dump_file &> /dev/null &
         pid_to_kill+=($!)
     done
@@ -159,7 +177,7 @@ start_dump()
 
 start_ping()
 {
-    echo "Start ping"
+    debug_echo "Start ping"
     #Save ping result to a file, the caller read it when task done
     ping_result="$DUMP_DIR/ping_result"
     if [ -f $ping_result ]
@@ -168,7 +186,9 @@ start_ping()
     else
         touch $ping_result
     fi
-    ping -s $ping_size -w $ping_time $ping_target >> $ping_result &
+    #ping -s $ping_size -w $ping_time $ping_target >> $ping_result &
+    # PCP will capture the stdout & stderr, user can check the ping result in the log
+    ping -s $ping_size -w $ping_time $ping_target &
     pid_to_kill+=($!)
 }
 
@@ -179,13 +199,14 @@ curl_upload_dump()
     then
         for f in ${dump_file_list[@]}
         do
-            echo "uploading file $f"
+            debug_echo "uploading file $f"
             DUMP_DST_FILE=`basename $f`
             curl -T $f -s ftp://${DUMP_FILE_SERVER_USER}:${DUMP_FILE_SERVER_PASS}@${DUMP_FILE_SERVER}${DUMP_FILE_DIR}/${DUMP_DST_FILE}
+            # need to verify upload success or fail?
             dump_file_upload_result=$?
         done
     else
-        echo "No dump files saved."
+        debug_echo "No dump files saved." >&2
     fi
 }
 
@@ -196,7 +217,7 @@ ftp_upload_dump()
     then
         for f in ${dump_file_list[@]}
         do
-            echo "uploading file $f"
+            debug_echo "uploading file $f"
             DUMP_DST_FILE=`basename $f`
 # upload all files by once is more efficient
 ftp -v -n $DUMP_FILE_SERVER <<END_SCRIPT
@@ -209,7 +230,7 @@ bye
 END_SCRIPT
         done
     else
-        echo "No dump files saved."
+        debug_echo "No dump files saved."
     fi
 }
 
@@ -221,7 +242,7 @@ remove_dump()
         do
             if [ -f $f ]
             then
-                echo "Remove dump file $f"
+                debug_echo "Remove dump file $f"
                 rm -f $f
             fi
         done
@@ -232,6 +253,7 @@ stop_upload_clean_exit()
 {
     error_code=$1
 
+    echo "======Task done======"
     # kill all child processes
     if [ "${#pid_to_kill[@]}" -gt 0 ]
     then
@@ -262,10 +284,10 @@ stop_upload_clean_exit()
 
 mandatory_para_check()
 {
-    [ "$time_para_exist" == "false" ] && echo "dump time -w parameter is mandatory" && exit $ERROR_INVALID_PARA
-    [ "$dir_para_exist" == "false" ] && echo "dump dir -d parameter is mandatory" && exit $ERROR_INVALID_PARA
-    [ "$nic_para_exist" == "false" ] && echo "NIC device -n parameter is mandatory" && exit $ERROR_INVALID_PARA
-    [ "$dst_para_exist" == "false" ] && echo "target address -o parameter is mandatory" && exit $ERROR_INVALID_PARA
+    [ "$time_para_exist" == "false" ] && debug_echo "dump time -w parameter is mandatory" && exit $ERROR_INVALID_PARA
+    [ "$dir_para_exist" == "false" ] && debug_echo "dump dir -d parameter is mandatory" && exit $ERROR_INVALID_PARA
+    [ "$nic_para_exist" == "false" ] && debug_echo "NIC device -n parameter is mandatory" && exit $ERROR_INVALID_PARA
+    [ "$dst_para_exist" == "false" ] && debug_echo "target address -o parameter is mandatory" && exit $ERROR_INVALID_PARA
 
 }
 
@@ -303,10 +325,10 @@ while getopts ":s:w:c:n:d:f:o:h" OPT; do
             dst_para_exist=true
             ;;
         \?|*) 
-            usage; echo "Unknown option: -$OPTARG" >&2; exit $ERROR_INVALID_PARA
+            usage; debug_echo "Unknown option: -$OPTARG" >&2; exit $ERROR_INVALID_PARA
             ;;
         :)
-            echo "Option -$OPTARG requires an argument." >&2
+            debug_echo "Option -$OPTARG requires an argument." >&2
             ;;
     esac
 done
@@ -353,6 +375,12 @@ do
             stop_upload_clean_exit $NORMAL_TIMEOUT
         else
             sleep 1
+            # Because PCP send kill is killing the salt itself, instead of 
+            # kill the task which was called by the salt, so monitor the
+            # salt process, if the father process exit, suicide itself.
+
+            # salt fix the issue
+            # hack_to_terminate
         fi
     fi
 done
@@ -361,10 +389,5 @@ done
 curl_upload_dump
 
 # TODO more check... the tcpdump start success?
-if [ $dump_file_upload_result -ne 0 ]
-then
-    exit $ERROR_UPLOAD_FILE
-else
-    exit $EXIT_OK
-fi
+exit $EXIT_OK
 
