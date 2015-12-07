@@ -1,9 +1,9 @@
 #!/bin/bash
 #==================================================
 # FILE: auto_dump.sh
-# Version: 1.0
-# CREATED: 2015/11/30   wangyinfeng(15061252)
-# UPDATE: 2015/12/02    wangyinfeng(15061252)
+# Version: 1.1
+# CREATED: 2015/11/30 	wangyinfeng(15061252) - init
+# UPDATE: 2015/12/04 	wangyinfeng(15061252) - correct the ftp server address
 # DESCRIPTION: script for network traffic analysis
 # PARAMETER: 
 #    -h      Help info.
@@ -22,7 +22,7 @@
 trap 'stop_upload_clean_exit $NORMAL_TERMINATE' TERM INT KILL
 
 # TODO
-#       more check... the tcpdump start success?
+#	more check... the tcpdump start success?
 
 # ping and tcpdump are child process of the task script, terminate the script will 
 # terminate all child process also. Then use trap to do cleanup jobs.
@@ -108,11 +108,17 @@ parameter_init()
 
     MAX_DISK_USAGE=90
 
+    # TODO make the parameters configurable from page
     # FTP parameters
-    DUMP_FILE_SERVER=10.19.251.27
-    DUMP_FILE_SERVER_USER="test"
-    DUMP_FILE_SERVER_PASS="test"
-    DUMP_FILE_DIR="/tcpdump"
+    #DUMP_FILE_SERVER=10.19.251.27
+    #DUMP_FILE_SERVER_USER="test"
+    #DUMP_FILE_SERVER_PASS="test"
+    #DUMP_FILE_DIR="/tcpdump"
+
+    DUMP_FILE_SERVER=192.168.2.104
+    DUMP_FILE_SERVER_USER="ftpuser"
+    DUMP_FILE_SERVER_PASS="0x2ja1O7"
+    DUMP_FILE_DIR="/dump"
 }
 
 hack_to_terminate()
