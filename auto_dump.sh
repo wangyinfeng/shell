@@ -15,14 +15,19 @@
 #    -o      The ping target IP address. Mandatory.
 #    -d      Dump file save directory. Mandatory.
 #--------------------------------------------------
+# TODO
+#	more check... the tcpdump start success?
+#   the ftp server avaliable?
+#   the saved dir exist?
+#   other parameters validate?
+#   the ftp info should be parameter
+#   clean code
+
 #set -e 
 #Exit immediately if a simple command exits with a non-zero status
 #set -xv
 
 trap 'stop_upload_clean_exit $NORMAL_TERMINATE' TERM INT KILL
-
-# TODO
-#	more check... the tcpdump start success?
 
 # ping and tcpdump are child process of the task script, terminate the script will 
 # terminate all child process also. Then use trap to do cleanup jobs.
