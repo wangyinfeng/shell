@@ -108,6 +108,8 @@ autocmd BufNewFile *.viki exec ":call SetViKiTitle()"
 autocmd BufNewFile *.c exec ":call SetCTitle()"
 "goto the end of the file when create the new file
 autocmd BufNewFile * normal G
+"Press F9 to run the python script 
+autocmd FileType python nnoremap <buffer> <F9> :exec '!python' shellescape(@%, 1)<cr>
 
 let g:vim_markdown_frontmatter=1
 "==============================================================================
