@@ -1,9 +1,16 @@
 #!/bin/bash
-#==================================================
+#==============================================================================
 # FILE: auto_dump.sh
-# Version: 1.1
+# Version: 1.2
 # CREATED: 2015/11/30 	wangyinfeng(15061252) - init
 # UPDATE: 2015/12/04 	wangyinfeng(15061252) - correct the ftp server address
+# UPDATE: 2015/12/22 	wangyinfeng(15061252) - take the ftp info as parameters
+#                                             - check the ftp server avaliable
+#                                             - check the saved directory exist
+#                                             - clean code
+# TODO
+#	more check... the tcpdump start success?
+#------------------------------------------------------------------------------
 # DESCRIPTION: script for network traffic analysis
 # PARAMETER: 
 #    -h      Help info.
@@ -14,21 +21,15 @@
 #    -f      Dump filter sting. Mandatory.
 #    -o      The ping target IP address. Mandatory.
 #    -d      Dump file save directory. Mandatory.
-#--------------------------------------------------
-# TODO
-#	more check... the tcpdump start success?
-#   the ftp server avaliable?
-#   the saved dir exist?
-#   other parameters validate?
-#   the ftp info should be parameter
-#   clean code
+#    -a      The limitation of single dump file size.
+#    -b      The ftp server address info
+#------------------------------------------------------------------------------
 
 #set -e 
 #Exit immediately if a simple command exits with a non-zero status
 #set -xv
 
 trap 'stop_upload_clean_exit $NORMAL_TERMINATE' TERM INT KILL
-
 # ping and tcpdump are child process of the task script, terminate the script will 
 # terminate all child process also. Then use trap to do cleanup jobs.
 
@@ -48,6 +49,10 @@ debug_echo(){
   [[ "$DEBUG" == true ]] && builtin echo $@
 }
 
+error_echo(){
+  builtin echo $@ >&2
+}
+
 usage()
 {
 cat << EOF
@@ -64,6 +69,8 @@ OPTIONS:
     -f      Dump filter sting. Mandatory.
     -o      The ping target IP address. Mandatory.
     -d      Dump file save directory. Mandatory.
+    -a      The limitation of single dump file size.
+    -b      The ftp server address info
 EOF
 }
 
@@ -74,6 +81,8 @@ ERROR_INVALID_PARA=101          # Task exit due to invalid parameter
 ERROR_DISK_FULL=102             # Task exit due to not enough free disk space
 ERROR_DUMP_FILE_TOO_LARGE=103   # Task exit due to dump file larger than 2GB
 ERROR_UPLOAD_FILE=110           # Error happened when upload dump files
+ERROR_FTP_NOT_AVALIABLE=111     # FTP server not avaliable
+ERROR_DIR_NOT_EXIST=112          # The target directory not exist
 
 parameter_init()
 {
@@ -87,9 +96,6 @@ parameter_init()
     ping_time=10
     protocol=icmp
     ping_target=localhost
-    # set capture_num large enough
-    #capture_num=31250000
-    capture_num=100000000
 
     # mandatory parameters
     time_para_exist=false
@@ -105,15 +111,15 @@ parameter_init()
     declare -a nic_list=()
     declare -a dump_file_list=()
 
-    #tcpdump parameters
-    #Limit the dump file total size
-    #DUMP_FILE_SIZE_LIMIT=2000000000
-    DUMP_FILE_SIZE_LIMIT=600000000
+    # tcpdump parameters
+    # set capture_num large enough
+    capture_num=100000000
+    # Limit the dump file total size
+    DUMP_FILE_SIZE_LIMIT=2000000000
     DUMP_DIR="/tmp"
-
+    # The max disk usage
     MAX_DISK_USAGE=90
 
-    # TODO make the parameters configurable from page
     # FTP parameters
     #DUMP_FILE_SERVER=10.19.251.27
     #DUMP_FILE_SERVER_USER="test"
@@ -124,6 +130,9 @@ parameter_init()
     DUMP_FILE_SERVER_USER="ftpuser"
     DUMP_FILE_SERVER_PASS="0x2ja1O7"
     DUMP_FILE_DIR="/dump"
+    
+    # user specified ftp server address
+    new_ftp_address=""
 }
 
 hack_to_terminate()
@@ -156,8 +165,24 @@ check_disk_space()
     current_usage=$(df -k $DUMP_DIR | grep -v ^File | grep -o '[^ ]*%' | tr -d "%")
     if [ $current_usage -ge $MAX_DISK_USAGE ]
     then
-        debug_echo "No more free disk space! Current usage $current_usage" >&2
+        error_echo "No more free disk space! Current usage $current_usage"
         stop_upload_clean_exit $ERROR_DISK_FULL
+    fi
+}
+
+check_ftp_server_avaliable()
+{
+    if [ "$new_ftp_address" != "" ]
+    then
+        curl $new_ftp_address/ &> /dev/null
+    else
+        curl ftp://${DUMP_FILE_SERVER_USER}:${DUMP_FILE_SERVER_PASS}@${DUMP_FILE_SERVER}${DUMP_FILE_DIR}/ &> /dev/null
+    fi
+    result=$?
+    if [ $result -ne 0 ]
+    then
+        error_echo "CURL access FTP server failed! Error code $result."
+        exit $ERROR_FTP_NOT_AVALIABLE
     fi
 }
 
@@ -177,11 +202,9 @@ get_dump_file_totoal_size()
 
 start_dump()
 {
-    # -C file_size, unit is MB
-    #tcpdump -i $NIC $PROTO -w a.pcap -C 1 -W 1 -w $dump_file > /dev/null &
     if [ "${#nic_list[@]}" -le 0 ]
     then
-        debug_echo "No NIC is provided!" >&2
+        error_echo "No NIC is provided!"
         stop_upload_clean_exit $ERROR_INVALID_PARA
     fi
 
@@ -197,6 +220,12 @@ start_dump()
 
         debug_echo "Start tcpdump for NIC: $nic"
         tcpdump -i $nic -c $capture_num $DUMP_FILTER_STR -w $dump_file &> /dev/null &
+        # start process on background always return 0?
+        result=$?
+        if [ $result -ne 0 ]
+        then
+            error_echo "Start tcpdump for interface $nic failed!"
+        fi
         pid_to_kill+=($!)
     done
 }
@@ -204,6 +233,7 @@ start_dump()
 start_ping()
 {
     debug_echo "Start ping"
+:<<COMMENT
     #Save ping result to a file, the caller read it when task done
     ping_result="$DUMP_DIR/ping_result"
     if [ -f $ping_result ]
@@ -213,6 +243,7 @@ start_ping()
         touch $ping_result
     fi
     #ping -s $ping_size -w $ping_time $ping_target >> $ping_result &
+COMMENT
     # PCP will capture the stdout & stderr, user can check the ping result in the log
     ping -s $ping_size -w $ping_time $ping_target &
     pid_to_kill+=($!)
@@ -227,12 +258,23 @@ curl_upload_dump()
         do
             debug_echo "uploading file $f"
             DUMP_DST_FILE=`basename $f`
-            curl -T $f -s ftp://${DUMP_FILE_SERVER_USER}:${DUMP_FILE_SERVER_PASS}@${DUMP_FILE_SERVER}${DUMP_FILE_DIR}/${DUMP_DST_FILE}
-            # need to verify upload success or fail?
-            dump_file_upload_result=$?
+            if [ "$new_ftp_address" != "" ]
+            then
+                curl -T $f -s $new_ftp_address/${DUMP_DST_FILE}
+            else
+                curl -T $f -s ftp://${DUMP_FILE_SERVER_USER}:${DUMP_FILE_SERVER_PASS}@${DUMP_FILE_SERVER}${DUMP_FILE_DIR}/${DUMP_DST_FILE}
+            fi
+
+            result=$?
+            if [ $result -ne 0 ]
+            then
+                error_echo "CURL upload file failed! Error code $result." 
+            else
+                [ "$new_ftp_addr" != "" ] && echo "FILE:$new_ftp_address/${DUMP_DST_FILE}" || echo "FILE:ftp://${DUMP_FILE_SERVER_USER}:${DUMP_FILE_SERVER_PASS}@${DUMP_FILE_SERVER}${DUMP_FILE_DIR}/${DUMP_DST_FILE}"
+            fi
         done
     else
-        debug_echo "No dump files saved." >&2
+        error_echo "No dump files saved."
     fi
 }
 
@@ -256,7 +298,7 @@ bye
 END_SCRIPT
         done
     else
-        debug_echo "No dump files saved."
+        error_echo "No dump files saved."
     fi
 }
 
@@ -279,18 +321,26 @@ stop_upload_clean_exit()
 {
     error_code=$1
 
-    echo "======Task done======"
+    echo "===========Task done============"
     # kill all child processes
     if [ "${#pid_to_kill[@]}" -gt 0 ]
     then
         for p in ${pid_to_kill[@]}
         do
-            echo "going to kill pid $p"
+            debug_echo "going to kill pid $p"
             kill $p &> /dev/null
             # double check the child process, make sure exit
-            if ! ps -p $p &> /dev/null 
+            ps -p $p &> /dev/null
+            result=$?
+            if [ $result -eq 0 ]
             then
                 kill -9 $p &> /dev/null
+                # give kill some time to done it's job
+                sleep 0.1
+                # if not able to kill the process, log the result to let user know
+                ps -p $p &> /dev/null
+                result=$?
+                [ $result -eq 0 ] && error_echo "Terminate process $p failed!!!"
             fi
         done
     fi
@@ -310,16 +360,22 @@ stop_upload_clean_exit()
 
 mandatory_para_check()
 {
-    [ "$time_para_exist" == "false" ] && debug_echo "dump time -w parameter is mandatory" && exit $ERROR_INVALID_PARA
-    [ "$dir_para_exist" == "false" ] && debug_echo "dump dir -d parameter is mandatory" && exit $ERROR_INVALID_PARA
-    [ "$nic_para_exist" == "false" ] && debug_echo "NIC device -n parameter is mandatory" && exit $ERROR_INVALID_PARA
-    [ "$dst_para_exist" == "false" ] && debug_echo "target address -o parameter is mandatory" && exit $ERROR_INVALID_PARA
+    [ "$time_para_exist" == "false" ] && error_echo "dump time -w parameter is mandatory" && exit $ERROR_INVALID_PARA
+    [ "$dir_para_exist" == "false" ] && error_echo "dump dir -d parameter is mandatory" && exit $ERROR_INVALID_PARA
+    [ "$nic_para_exist" == "false" ] && error_echo "NIC device -n parameter is mandatory" && exit $ERROR_INVALID_PARA
+    [ "$dst_para_exist" == "false" ] && error_echo "target address -o parameter is mandatory" && exit $ERROR_INVALID_PARA
 
+    # check file saved directory exist or not
+    if [ ! -d $DUMP_DIR ]
+    then
+        error_echo "The target directory $DUMP_DIR not exist!"
+        exit $ERROR_DIR_NOT_EXIST
+    fi
 }
 
 parameter_init
 
-while getopts ":s:w:c:n:d:f:o:h" OPT; do
+while getopts ":s:w:c:n:d:f:o:a:b:h" OPT; do
     case "$OPT" in
         h)
             usage
@@ -350,16 +406,24 @@ while getopts ":s:w:c:n:d:f:o:h" OPT; do
             ping_target=${OPTARG}
             dst_para_exist=true
             ;;
+        a)
+            dump_file_size_in_mb=${OPTARG}
+            ((DUMP_FILE_SIZE_LIMIT=dump_file_size_in_mb*1000000))
+            ;;
+        b)
+            new_ftp_address=${OPTARG}
+            ;;
         \?|*) 
-            usage; debug_echo "Unknown option: -$OPTARG" >&2; exit $ERROR_INVALID_PARA
+            usage; error_echo "Unknown option: -$OPTARG"; exit $ERROR_INVALID_PARA
             ;;
         :)
-            debug_echo "Option -$OPTARG requires an argument." >&2
+            error_echo "Option -$OPTARG requires an argument."; exit $ERROR_INVALID_PARA
             ;;
     esac
 done
 
 mandatory_para_check
+check_ftp_server_avaliable
 
 oIFS=$IFS
 IFS=', '
@@ -407,8 +471,5 @@ do
 done
 
 # Should never come here!
-#ftp_upload_dump
-curl_upload_dump
-remove_dump
 exit $EXIT_OK
 
