@@ -7,6 +7,9 @@
 # UPDATE: 2015/12/22 	wangyinfeng(15061252) - take the ftp info as parameters
 #                                             - check the ftp server avaliable
 #                                             - check the saved directory exist
+#                                             - check the curl upload file result
+#                                             - check required software avaliable
+#                                             - echo proper log to stdout and stderr
 #                                             - clean code
 # TODO
 #	more check... the tcpdump start success?
@@ -76,13 +79,14 @@ EOF
 
 EXIT_OK=0
 NORMAL_TIMEOUT=0                # Task done due to time out
-NORMAL_TERMINATE=0               # Task be terminated
+NORMAL_TERMINATE=0              # Task be terminated
 ERROR_INVALID_PARA=101          # Task exit due to invalid parameter
 ERROR_DISK_FULL=102             # Task exit due to not enough free disk space
 ERROR_DUMP_FILE_TOO_LARGE=103   # Task exit due to dump file larger than 2GB
 ERROR_UPLOAD_FILE=110           # Error happened when upload dump files
 ERROR_FTP_NOT_AVALIABLE=111     # FTP server not avaliable
-ERROR_DIR_NOT_EXIST=112          # The target directory not exist
+ERROR_DIR_NOT_EXIST=112         # The target directory not exist
+ERROR_SW_NOT_AVALIABLE=113      # The required software not avaliable
 
 parameter_init()
 {
@@ -114,10 +118,10 @@ parameter_init()
     # tcpdump parameters
     # set capture_num large enough
     capture_num=100000000
-    # Limit the dump file total size
+    # Limit the dump file total size - 2GB default
     DUMP_FILE_SIZE_LIMIT=2000000000
     DUMP_DIR="/tmp"
-    # The max disk usage
+    # The max disk usage - 90% default
     MAX_DISK_USAGE=90
 
     # FTP parameters
@@ -158,6 +162,32 @@ save_my_pid()
         touch $pid_file
     fi
     echo $my_pid > $pid_file
+}
+
+# Check the validation about required software
+check_software_avaliable()
+{
+    # Check OS
+    os=`uname`
+    if [[ "$os" != *"inux" ]]
+    then
+        error_echo "Operation System is $os, not supported!"
+        exit ERROR_SW_NOT_AVALIABLE
+    fi
+
+    # Check tcpdump
+    if ! type tcpdump &> /dev/null
+    then
+        error_echo "tcpdump not avaliable!" 
+        exit ERROR_SW_NOT_AVALIABLE
+    fi
+
+    # Check curl
+    if ! type curl &> /dev/null
+    then
+        error_echo "curl not avaliable!" 
+        exit ERROR_SW_NOT_AVALIABLE
+    fi
 }
 
 check_disk_space()
@@ -224,7 +254,7 @@ start_dump()
         result=$?
         if [ $result -ne 0 ]
         then
-            error_echo "Start tcpdump for interface $nic failed!"
+            error_echo "Start tcpdump on interface $nic failed!"
         fi
         pid_to_kill+=($!)
     done
@@ -270,7 +300,7 @@ curl_upload_dump()
             then
                 error_echo "CURL upload file failed! Error code $result." 
             else
-                [ "$new_ftp_addr" != "" ] && echo "FILE:$new_ftp_address/${DUMP_DST_FILE}" || echo "FILE:ftp://${DUMP_FILE_SERVER_USER}:${DUMP_FILE_SERVER_PASS}@${DUMP_FILE_SERVER}${DUMP_FILE_DIR}/${DUMP_DST_FILE}"
+                [ "$new_ftp_address" != "" ] && echo "FILE:$new_ftp_address/${DUMP_DST_FILE}" || echo "FILE:ftp://${DUMP_FILE_SERVER_USER}:${DUMP_FILE_SERVER_PASS}@${DUMP_FILE_SERVER}${DUMP_FILE_DIR}/${DUMP_DST_FILE}"
             fi
         done
     else
@@ -373,6 +403,7 @@ mandatory_para_check()
     fi
 }
 
+check_software_avaliable
 parameter_init
 
 while getopts ":s:w:c:n:d:f:o:a:b:h" OPT; do
@@ -447,7 +478,6 @@ start_ping
 while :
 do
     check_disk_space
-
     get_dump_file_totoal_size
 
     if [ $dump_file_total_size -gt $DUMP_FILE_SIZE_LIMIT ]
