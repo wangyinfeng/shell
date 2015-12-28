@@ -10,9 +10,11 @@
 #                                             - check the curl upload file result
 #                                             - check required software avaliable
 #                                             - echo proper log to stdout and stderr
-#                                             - clean code
+#                                             - correct the tcpdump filer for tagged traffic
+#                                             - clean code, optimize error info prompt
 # TODO
 #	more check... the tcpdump start success?
+#   get the physical server's data interface by analysis the plugin.ini? 
 #------------------------------------------------------------------------------
 # DESCRIPTION: script for network traffic analysis
 # PARAMETER: 
@@ -26,6 +28,7 @@
 #    -d      Dump file save directory. Mandatory.
 #    -a      The limitation of single dump file size.
 #    -b      The ftp server address info
+#    -e      Physical or virtual machine
 #------------------------------------------------------------------------------
 
 #set -e 
@@ -45,6 +48,9 @@ trap 'stop_upload_clean_exit $NORMAL_TERMINATE' TERM INT KILL
 
 #Require all parameters are lowcase!
 #When caller want to stop the task, send SIGTERM, eg. kill -s 15 <PID>
+
+ENV="SIT"
+#ENV="PRD"
 
 #DEBUG=true
 DEBUG=false
@@ -74,19 +80,20 @@ OPTIONS:
     -d      Dump file save directory. Mandatory.
     -a      The limitation of single dump file size.
     -b      The ftp server address info
+    -e      Physical or virtual machine
 EOF
 }
 
 EXIT_OK=0
 NORMAL_TIMEOUT=0                # Task done due to time out
 NORMAL_TERMINATE=0              # Task be terminated
-ERROR_INVALID_PARA=101          # Task exit due to invalid parameter
-ERROR_DISK_FULL=102             # Task exit due to not enough free disk space
-ERROR_DUMP_FILE_TOO_LARGE=103   # Task exit due to dump file larger than 2GB
-ERROR_UPLOAD_FILE=110           # Error happened when upload dump files
+ERROR_INVALID_PARA=101          # Invalid parameter
+ERROR_DISK_FULL=102             # Not enough free disk space
+ERROR_DUMP_FILE_TOO_LARGE=103   # Dump file larger than 2GB
+ERROR_UPLOAD_FILE=110           # Upload dump files failed
 ERROR_FTP_NOT_AVALIABLE=111     # FTP server not avaliable
 ERROR_DIR_NOT_EXIST=112         # The target directory not exist
-ERROR_SW_NOT_AVALIABLE=113      # The required software not avaliable
+ERROR_SW_NOT_AVALIABLE=113      # Required software not avaliable
 
 parameter_init()
 {
@@ -115,6 +122,8 @@ parameter_init()
     declare -a nic_list=()
     declare -a dump_file_list=()
 
+    # Physical or virtual machine
+    machine_type="p"
     # tcpdump parameters
     # set capture_num large enough
     capture_num=100000000
@@ -125,15 +134,22 @@ parameter_init()
     MAX_DISK_USAGE=90
 
     # FTP parameters
-    #DUMP_FILE_SERVER=10.19.251.27
-    #DUMP_FILE_SERVER_USER="test"
-    #DUMP_FILE_SERVER_PASS="test"
-    #DUMP_FILE_DIR="/tcpdump"
-
-    DUMP_FILE_SERVER=192.168.2.104
-    DUMP_FILE_SERVER_USER="ftpuser"
-    DUMP_FILE_SERVER_PASS="0x2ja1O7"
-    DUMP_FILE_DIR="/dump"
+    if [ "$ENV" == "SIT" ]
+    then
+        DUMP_FILE_SERVER=10.19.251.27
+        DUMP_FILE_SERVER_USER="test"
+        DUMP_FILE_SERVER_PASS="test"
+        DUMP_FILE_DIR="/tcpdump"
+    elif [ "$ENV" == "PRD" ]
+    then
+        DUMP_FILE_SERVER=192.168.2.104
+        DUMP_FILE_SERVER_USER="ftpuser"
+        DUMP_FILE_SERVER_PASS="0x2ja1O7"
+        DUMP_FILE_DIR="/dump"
+    else
+        error_echo "Enviroment $ENV unknow. Exit"
+        exit $ERROR_INVALID_PARA
+    fi
     
     # user specified ftp server address
     new_ftp_address=""
@@ -172,21 +188,21 @@ check_software_avaliable()
     if [[ "$os" != *"inux" ]]
     then
         error_echo "Operation System is $os, not supported!"
-        exit ERROR_SW_NOT_AVALIABLE
+        exit $ERROR_SW_NOT_AVALIABLE
     fi
 
     # Check tcpdump
     if ! type tcpdump &> /dev/null
     then
         error_echo "tcpdump not avaliable!" 
-        exit ERROR_SW_NOT_AVALIABLE
+        exit $ERROR_SW_NOT_AVALIABLE
     fi
 
     # Check curl
     if ! type curl &> /dev/null
     then
         error_echo "curl not avaliable!" 
-        exit ERROR_SW_NOT_AVALIABLE
+        exit $ERROR_SW_NOT_AVALIABLE
     fi
 }
 
@@ -240,6 +256,12 @@ start_dump()
 
     for nic in ${nic_list[@]}
     do
+        if [[ "$nic" == "any" ]] && [[ "$DUMP_FILTER_STR" == *"vlan"* ]]
+        then
+            error_echo "tcpdump: no VLAN support for data link type 113(Linux cooked capture) on interface $nic"
+            continue
+        fi
+
         dump_file="$DUMP_DIR/tcpdump_`hostname`-$nic-`date +%Y%m%d%H%M%S`.pcap"
         if [ -f $dump_file ]
         then
@@ -249,6 +271,36 @@ start_dump()
         dump_file_list+=($dump_file)
 
         debug_echo "Start tcpdump for NIC: $nic"
+        # traffic on physical data interface with VLAN tagged, 
+        # if filter the traffic with L3 or L4 info for tagged traffic, vlan keyword should be added
+        # mgmt port is access port, no VLAN tagged
+        if [ "$ENV" == "SIT" ]
+        then
+            if [[ "$nic" == "eth0" ]] && [[ "$machine_type" == "p" ]]
+            then
+                if [[ "$DUMP_FILTER_STR" != "" ]] && [[ "$DUMP_FILTER_STR" != *"vlan"* ]]
+                then
+                   DUMP_FILTER_STR="vlan and $DUMP_FILTER_STR"
+                fi
+            fi
+        elif [ "$ENV" == "PRD" ]
+        then
+            if [ "$machine_type" == "p" ]
+            then
+                if [[ "$nic" == "eth1" ]] || [[ "$nic" == "eth3" ]]
+                then
+                    if [[ "$DUMP_FILTER_STR" != "" ]] && [[ "$DUMP_FILTER_STR" != *"vlan"* ]]
+                    then
+                       DUMP_FILTER_STR="vlan and $DUMP_FILTER_STR"
+                    fi
+                fi
+            fi
+        else
+            error_echo "Enviroment $ENV unknow. Exit"
+            exit $ERROR_INVALID_PARA
+        fi
+
+        debug_echo "The filter for $nic is $DUMP_FILTER_STR"
         tcpdump -i $nic -c $capture_num $DUMP_FILTER_STR -w $dump_file &> /dev/null &
         # start process on background always return 0?
         result=$?
@@ -366,11 +418,11 @@ stop_upload_clean_exit()
             then
                 kill -9 $p &> /dev/null
                 # give kill some time to done it's job
-                sleep 0.1
+                sleep 1
                 # if not able to kill the process, log the result to let user know
                 ps -p $p &> /dev/null
                 result=$?
-                [ $result -eq 0 ] && error_echo "Terminate process $p failed!!!"
+                [ $result -eq 0 ] && error_echo "Terminate process $p seems failed! "
             fi
         done
     fi
@@ -406,7 +458,7 @@ mandatory_para_check()
 check_software_avaliable
 parameter_init
 
-while getopts ":s:w:c:n:d:f:o:a:b:h" OPT; do
+while getopts ":s:w:c:n:d:f:o:a:b:e:h" OPT; do
     case "$OPT" in
         h)
             usage
@@ -432,6 +484,10 @@ while getopts ":s:w:c:n:d:f:o:a:b:h" OPT; do
             ;;
         f)
             DUMP_FILTER_STR=${OPTARG}
+            if [[ "$DUMP_FILTER_STR" == "none" ]]
+            then
+                DUMP_FILTER_STR=""
+            fi
             ;;
         o)
             ping_target=${OPTARG}
@@ -443,6 +499,9 @@ while getopts ":s:w:c:n:d:f:o:a:b:h" OPT; do
             ;;
         b)
             new_ftp_address=${OPTARG}
+            ;;
+        e)
+            machine_type=${OPTARG}
             ;;
         \?|*) 
             usage; error_echo "Unknown option: -$OPTARG"; exit $ERROR_INVALID_PARA
@@ -472,8 +531,12 @@ start_dump
 #then
 #    start_ping
 #fi
-#start ping anyway
-start_ping
+
+#start ping on VM only
+if [[ "$machine_type" == "v" ]]
+then
+    start_ping
+fi
 
 while :
 do
