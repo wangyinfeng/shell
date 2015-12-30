@@ -4,7 +4,7 @@
 # Version: 1.2
 # CREATED: 2015/11/30 	wangyinfeng(15061252) - init
 # UPDATE: 2015/12/04 	wangyinfeng(15061252) - correct the ftp server address
-# UPDATE: 2015/12/22 	wangyinfeng(15061252) - take the ftp info as parameters
+# UPDATE: 2015/12/30 	wangyinfeng(15061252) - take the ftp info as parameters
 #                                             - check the ftp server avaliable
 #                                             - check the saved directory exist
 #                                             - check the curl upload file result
@@ -14,7 +14,6 @@
 #                                             - clean code, optimize error info prompt
 # TODO
 #	more check... the tcpdump start success?
-#   get the physical server's data interface by analysis the plugin.ini? 
 #------------------------------------------------------------------------------
 # DESCRIPTION: script for network traffic analysis
 # PARAMETER: 
@@ -80,7 +79,7 @@ OPTIONS:
     -d      Dump file save directory. Mandatory.
     -a      The limitation of single dump file size.
     -b      The ftp server address info
-    -e      Physical or virtual machine
+    -e      Physical or virtual machine. Mandatory.
 EOF
 }
 
@@ -113,6 +112,7 @@ parameter_init()
     dir_para_exist=false
     dst_para_exist=false
     nic_para_exist=false
+    machine_para_exist=false
 
     run_time=0
     dump_file_total_size=0
@@ -152,6 +152,7 @@ parameter_init()
     fi
     
     # user specified ftp server address
+    # format ftp://username:passwd@FTPADDRESS/DIR
     new_ftp_address=""
 }
 
@@ -208,7 +209,18 @@ check_software_avaliable()
 
 check_disk_space()
 {
+    re='^[0-9]+$'
     current_usage=$(df -k $DUMP_DIR | grep -v ^File | grep -o '[^ ]*%' | tr -d "%")
+    # -P to use the POSIX output format
+    #free_disk=$(df -kP $DUMP_DIR | grep -v ^File | awk '{print $4}')
+
+    # be sure get the usage correctly
+    if ! [[ $current_usage =~ $re ]]
+    then
+        error_echo "Get disk usage for $DUMP_DIR failed. The result is $current_usage."
+        stop_upload_clean_exit $ERROR_INVALID_PARA
+    fi
+
     if [ $current_usage -ge $MAX_DISK_USAGE ]
     then
         error_echo "No more free disk space! Current usage $current_usage"
@@ -256,6 +268,9 @@ start_dump()
 
     for nic in ${nic_list[@]}
     do
+        double_dump=false
+        DUMP_FILTER_STR_ORI=""
+
         if [[ "$nic" == "any" ]] && [[ "$DUMP_FILTER_STR" == *"vlan"* ]]
         then
             error_echo "tcpdump: no VLAN support for data link type 113(Linux cooked capture) on interface $nic"
@@ -263,11 +278,7 @@ start_dump()
         fi
 
         dump_file="$DUMP_DIR/tcpdump_`hostname`-$nic-`date +%Y%m%d%H%M%S`.pcap"
-        if [ -f $dump_file ]
-        then
-            rm -f $dump_file
-        fi
-        touch $dump_file
+        [ -f $dump_file ] && rm -f $dump_file; touch $dump_file
         dump_file_list+=($dump_file)
 
         debug_echo "Start tcpdump for NIC: $nic"
@@ -276,22 +287,29 @@ start_dump()
         # mgmt port is access port, no VLAN tagged
         if [ "$ENV" == "SIT" ]
         then
+            # SIT DEV use eth0 as data interface - but not all!
+            # TODO a more flexible way is do configure file analysis to get the data interface
             if [[ "$nic" == "eth0" ]] && [[ "$machine_type" == "p" ]]
             then
                 if [[ "$DUMP_FILTER_STR" != "" ]] && [[ "$DUMP_FILTER_STR" != *"vlan"* ]]
                 then
-                   DUMP_FILTER_STR="vlan and $DUMP_FILTER_STR"
+                    DUMP_FILTER_STR_ORI=$DUMP_FILTER_STR
+                    double_dump=true
+                    DUMP_FILTER_STR="vlan and $DUMP_FILTER_STR"
                 fi
             fi
         elif [ "$ENV" == "PRD" ]
         then
             if [ "$machine_type" == "p" ]
             then
+                # PRD use eth1 and eth3 as data interfaces, no exception
                 if [[ "$nic" == "eth1" ]] || [[ "$nic" == "eth3" ]]
                 then
                     if [[ "$DUMP_FILTER_STR" != "" ]] && [[ "$DUMP_FILTER_STR" != *"vlan"* ]]
                     then
-                       DUMP_FILTER_STR="vlan and $DUMP_FILTER_STR"
+                        DUMP_FILTER_STR_ORI=$DUMP_FILTER_STR
+                        double_dump=true
+                        DUMP_FILTER_STR="vlan and $DUMP_FILTER_STR"
                     fi
                 fi
             fi
@@ -309,6 +327,22 @@ start_dump()
             error_echo "Start tcpdump on interface $nic failed!"
         fi
         pid_to_kill+=($!)
+
+        # All packets on the physical data interface should be VLAN tagged, and
+        # should be captured by filter "vlan and ...", but when test on SIT,
+        # the icmp echo reply can not be captured by "vlan and ..." but can be
+        # captured by "not vlan and ..."! but in fact the packet ethertype is (0x8100)
+        # maybe it depends on the position where tcpdump capture the data.
+        # Do hacking way to capture "all" packets.
+        if [[ $double_dump == "true" ]] && [[ $DUMP_FILTER_STR_ORI != "" ]]
+        then
+            dump_file="$DUMP_DIR/tcpdump_`hostname`-$nic-no-vlan-`date +%Y%m%d%H%M%S`.pcap"
+            [ -f $dump_file ] && rm -f $dump_file; touch $dump_file
+            dump_file_list+=($dump_file)
+            debug_echo "The filter for $nic is $DUMP_FILTER_STR_ORI"
+            tcpdump -i $nic -c $capture_num $DUMP_FILTER_STR_ORI -w $dump_file &> /dev/null &
+            pid_to_kill+=($!)
+        fi
     done
 }
 
@@ -352,6 +386,7 @@ curl_upload_dump()
             then
                 error_echo "CURL upload file failed! Error code $result." 
             else
+                # give file link to PCP to provide download method from web page
                 [ "$new_ftp_address" != "" ] && echo "FILE:$new_ftp_address/${DUMP_DST_FILE}" || echo "FILE:ftp://${DUMP_FILE_SERVER_USER}:${DUMP_FILE_SERVER_PASS}@${DUMP_FILE_SERVER}${DUMP_FILE_DIR}/${DUMP_DST_FILE}"
             fi
         done
@@ -410,15 +445,19 @@ stop_upload_clean_exit()
         for p in ${pid_to_kill[@]}
         do
             debug_echo "going to kill pid $p"
-            kill $p &> /dev/null
+            # use "kill -INT PID" instead of "kill PID" to fix the issue about
+            # "The capture file appears to have been cut short in the middle of a packet"
+            #kill $p &> /dev/null
+            kill -2 $p &> /dev/null
+            # give tcpdump some time to done it's job
+            sleep 0.5
             # double check the child process, make sure exit
             ps -p $p &> /dev/null
             result=$?
             if [ $result -eq 0 ]
             then
                 kill -9 $p &> /dev/null
-                # give kill some time to done it's job
-                sleep 1
+                sleep 0.1
                 # if not able to kill the process, log the result to let user know
                 ps -p $p &> /dev/null
                 result=$?
@@ -446,6 +485,7 @@ mandatory_para_check()
     [ "$dir_para_exist" == "false" ] && error_echo "dump dir -d parameter is mandatory" && exit $ERROR_INVALID_PARA
     [ "$nic_para_exist" == "false" ] && error_echo "NIC device -n parameter is mandatory" && exit $ERROR_INVALID_PARA
     [ "$dst_para_exist" == "false" ] && error_echo "target address -o parameter is mandatory" && exit $ERROR_INVALID_PARA
+    [ "$machine_para_exist" == "false" ] && error_echo "machine type -e parameter is mandatory" && exit $ERROR_INVALID_PARA
 
     # check file saved directory exist or not
     if [ ! -d $DUMP_DIR ]
@@ -502,6 +542,7 @@ while getopts ":s:w:c:n:d:f:o:a:b:e:h" OPT; do
             ;;
         e)
             machine_type=${OPTARG}
+            machine_para_exist=true
             ;;
         \?|*) 
             usage; error_echo "Unknown option: -$OPTARG"; exit $ERROR_INVALID_PARA
@@ -524,8 +565,12 @@ IFS=$oIFS
 
 # Salt is able to return the script pid, no need to save to file.
 #save_my_pid
+
 # Start tcpdump before ping
 start_dump
+# wait to make sure can capture the first packet
+sleep 1
+
 # if ping test or specify protocol is icmp or all, do ping
 #if [[ $DUMP_FILTER_STR =~ icmp ]] || [[ $DUMP_FILTER_STR =~ all ]] 
 #then
