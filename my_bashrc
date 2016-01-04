@@ -25,6 +25,7 @@ if [[ `uname` == "MINGW32_NT-6.1" ]]; then
     cd myhub
 fi
 
+#TODO monitor the socket status
 #auto start when login the shell
 if [[ `uname` == "Darwin" ]]; then
     if ! pgrep autossh > /dev/null; then
