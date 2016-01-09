@@ -1,6 +1,9 @@
 #For the list of install software, save the items in a standalone text file is
 #is more clear. The yum or apt-get can read the file and get list to do their
 #jobs.
+#TODO 
+#   check the release type, to determine use yum or apt-get to install the software
+#   check before install
 
 PyQt4
 zip
@@ -17,3 +20,21 @@ wireshark
 wireshrk-gnome
 
 groupinstall "Desktop" "Desktop Platform" "X Window System" "Fonts"
+
+"general"
+wget https://bootstrap.pypa.io/get-pip.py
+sudo python get-pip.py
+
+openvswitch-switch
+docker
+docker.io
+gcc
+qemu-system-x86
+virt-manager
+ubuntu-vm-builder
+openssh-server
+libtool
+autoconf
+libssl1.0.0
+openssl
+
