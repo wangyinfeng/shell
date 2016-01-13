@@ -1,7 +1,7 @@
 #!/bin/bash
 #==============================================================================
 # FILE: auto_dump.sh
-# Version: 1.2
+# Version: 1.3
 # CREATED: 2015/11/30 	wangyinfeng(15061252) - init
 # UPDATE: 2015/12/04 	wangyinfeng(15061252) - correct the ftp server address
 # UPDATE: 2015/12/30 	wangyinfeng(15061252) - take the ftp info as parameters
@@ -12,6 +12,8 @@
 #                                             - echo proper log to stdout and stderr
 #                                             - correct the tcpdump filer for tagged traffic
 #                                             - clean code, optimize error info prompt
+# UPDATE: 2016/01/13    wangyinfeng(15061252) - Get data nic list from plugin.ini cfg file
+#
 # TODO
 #	more check... the tcpdump start success?
 #------------------------------------------------------------------------------
@@ -120,6 +122,8 @@ parameter_init()
 
     declare -a pid_to_kill=()
     declare -a nic_list=()
+    declare -a data_nic_list=()
+    declare -a data_br_list=()
     declare -a dump_file_list=()
 
     # Physical or virtual machine
@@ -132,6 +136,9 @@ parameter_init()
     DUMP_DIR="/tmp"
     # The max disk usage - 90% default
     MAX_DISK_USAGE=90
+    
+    # The configure file location 
+    PLUGIN_CFG_FILE="/etc/neutron/plugin.ini"
 
     # FTP parameters
     if [ "$ENV" == "SIT" ]
@@ -181,6 +188,48 @@ save_my_pid()
     echo $my_pid > $pid_file
 }
 
+# analysis the plugin.ini file, and get the nic list for data physical network
+get_data_nic()
+{
+    # Check ovs-ofctl
+    if ! type ovs-ofctl &> /dev/null
+    then
+        error_echo "ovs-ofctl not avaliable. Maybe it's not an OpenStack host."
+        return 1
+    fi
+
+    if [ -f $PLUGIN_CFG_FILE ]
+    then
+        bridge_mapping=$(cat $PLUGIN_CFG_FILE | grep ^bridge_mappings)
+        bridges=$(echo $bridge_mapping | grep -o 'br-[^ ,]\+')
+        debug_echo "Bridges on host: $bridges"
+
+        data_br_list=($bridges)
+        for br in ${data_br_list[@]}
+        do
+            nics=$(ovs-ofctl show $br | grep eth | grep -v phy| grep -v br | grep -o 'eth[^ ,]')
+            data_nic_list=($nics)
+        done
+
+        if [ "${#data_nic_list[@]}" -gt 0 ]
+        then
+            debug_echo "The data NICs on the host: ${data_nic_list[@]}"
+        else
+            debug_echo "No data NICs on the host!"
+        fi
+
+    else
+        error_echo "Configure file $PLUGIN_CFG_FILE not exit. Maybe it's not an OpenStack host."
+        return 1
+    fi
+}
+
+contains_element () {
+  local e
+  for e in "${@:2}"; do [[ "$e" == "$1" ]] && return 0; done
+  return 1
+}
+
 # Check the validation about required software
 check_software_avaliable()
 {
@@ -205,6 +254,7 @@ check_software_avaliable()
         error_echo "curl not avaliable!" 
         exit $ERROR_SW_NOT_AVALIABLE
     fi
+    
 }
 
 check_disk_space()
@@ -285,11 +335,10 @@ start_dump()
         # traffic on physical data interface with VLAN tagged, 
         # if filter the traffic with L3 or L4 info for tagged traffic, vlan keyword should be added
         # mgmt port is access port, no VLAN tagged
-        if [ "$ENV" == "SIT" ]
+        if [ "$machine_type" == "p" ] && [ "${#data_nic_list[@]}" -gt 0 ]
         then
-            # SIT DEV use eth0 as data interface - but not all!
-            # TODO a more flexible way is do configure file analysis to get the data interface
-            if [[ "$nic" == "eth0" ]] && [[ "$machine_type" == "p" ]]
+            # the nic is configured as data port
+            if contains_element "$nic" "${data_nic_list[@]}"
             then
                 if [[ "$DUMP_FILTER_STR" != "" ]] && [[ "$DUMP_FILTER_STR" != *"vlan"* ]]
                 then
@@ -298,24 +347,6 @@ start_dump()
                     DUMP_FILTER_STR="vlan and $DUMP_FILTER_STR"
                 fi
             fi
-        elif [ "$ENV" == "PRD" ]
-        then
-            if [ "$machine_type" == "p" ]
-            then
-                # PRD use eth1 and eth3 as data interfaces, no exception
-                if [[ "$nic" == "eth1" ]] || [[ "$nic" == "eth3" ]]
-                then
-                    if [[ "$DUMP_FILTER_STR" != "" ]] && [[ "$DUMP_FILTER_STR" != *"vlan"* ]]
-                    then
-                        DUMP_FILTER_STR_ORI=$DUMP_FILTER_STR
-                        double_dump=true
-                        DUMP_FILTER_STR="vlan and $DUMP_FILTER_STR"
-                    fi
-                fi
-            fi
-        else
-            error_echo "Enviroment $ENV unknow. Exit"
-            exit $ERROR_INVALID_PARA
         fi
 
         debug_echo "The filter for $nic is $DUMP_FILTER_STR"
@@ -332,7 +363,7 @@ start_dump()
         # should be captured by filter "vlan and ...", but when test on SIT,
         # the icmp echo reply can not be captured by "vlan and ..." but can be
         # captured by "not vlan and ..."! but in fact the packet ethertype is (0x8100)
-        # maybe it depends on the position where tcpdump capture the data.
+        # maybe it depends on the position where tcpdump capture the data(stack/driver?).
         # Do hacking way to capture "all" packets.
         if [[ $double_dump == "true" ]] && [[ $DUMP_FILTER_STR_ORI != "" ]]
         then
@@ -562,6 +593,9 @@ IFS=', '
 # save NIC device to the list
 read -ra nic_list <<< "$NIC_STR"
 IFS=$oIFS
+
+# Get NIC to the physical data network by the plugin.ini file
+get_data_nic
 
 # Salt is able to return the script pid, no need to save to file.
 #save_my_pid
