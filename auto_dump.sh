@@ -36,6 +36,10 @@
 #Exit immediately if a simple command exits with a non-zero status
 #set -xv
 
+#nounset. Attempt to use undefined variable outputs error message, and forces an exit
+# TODO  this setting not verified.
+set -u
+
 trap 'stop_upload_clean_exit $NORMAL_TERMINATE' TERM INT KILL
 # ping and tcpdump are child process of the task script, terminate the script will 
 # terminate all child process also. Then use trap to do cleanup jobs.
