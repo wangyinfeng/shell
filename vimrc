@@ -63,6 +63,7 @@ set sw=4            "set auto index space
 set et              "expand tab, use space to replace tab
 
 set number          "show line number
+set relativenumber  "show relative number
 set showcmd         "show current execute command
 "set smartindent
 set showmatch       "show match parenthese
