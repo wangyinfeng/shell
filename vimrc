@@ -32,7 +32,7 @@ set shortmess=atl   "not show the info about shortmess children
 colorscheme koehler
 
 syntax on           "syntax highlight
-set hlsearch        "search highlight"
+set hlsearch        "search highlight
 set mousehide       "hide mouse
 set guioptions-=m   "no gui menu
 set guioptions-=T
