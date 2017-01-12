@@ -59,6 +59,11 @@ set laststatus=2    "set command bar with 2 lines
 
 set nobackup        "no backup files
 
+set cc=79
+set cursorline
+set cursorcolumn
+set t_Co=256
+
 set tabstop=4       "set tab space
 set sw=4            "set auto index space
 set et              "expand tab, use space to replace tab
