@@ -2,10 +2,10 @@
 set -e
 
 # hostname for each node.
-# MUST be identical with the `hostname`
-node=(c-0001 c-0002 c-0003 c-0004)  
-username=root              # username to be interconnected
-#homedir=$username         # home dir, i.e. home/zhangyang
+# MUST be identical with the out put of `hostname`
+node=(c-0001 c-0002 c-0003)
+# username to be interconnected
+username=root
 password=1qaz@wsx
 
 node_num=${#node[*]}
@@ -19,29 +19,20 @@ else
     homedir=home/$username
 fi
 
-# Check for SSH Directory
 if [ ! -d ~/.ssh ]; then
     mkdir -p ~/.ssh/
 fi
 
-# Check for existence of passphrase
 if [ ! -f ~/.ssh/id_rsa.pub ]; then
     ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
     echo "Execute ssh-keygen --[done]"
 fi
 
-# Check for existence of authorized_keys and append the shared ssh keys
 if [ ! -f ~/.ssh/authorized_keys ]; then
     touch ~/.ssh/authorized_keys
     echo "Create ~/.ssh/authorized_keys --[done]"
-#        chmod 700 ~/.ssh/authorized_keys
-#        cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-#        echo "Append the public keys id_rsa into authorized keys --[done]"
-#        chmod 400 ~/.ssh/authorized_keys
-#        chmod 700 ~/.ssh/
 fi
 
-# Create user's ssh config it not exist
 if [ ! -f ~/.ssh/config ]; then
     touch ~/.ssh/config
     echo "StrictHostKeyChecking no" > ~/.ssh/config
@@ -61,30 +52,27 @@ auto_ssh_copy_id() {
 }
 
 ssh_copy_id_to_all() {
-    for((i=0; i<${#node[*]}; i++))
+    for((i=0; i<node_num; i++))
     do
         auto_ssh_copy_id ${node[i]} $password
     done
 }
-
 ssh_copy_id_to_all
 
-for((i=0; i<${#node[*]}; i++))
+
+for((i=0; i<node_num; i++))
 do
     if [[ ${node[i]} = $local_host_name ]];then
-        echo "${node[i]} is myself"
         continue
     fi
-    # TODO 
-    ssh $username@${node[i]} 'ssh-keygen -t rsa -N '' -f ~/.ssh/id_rsa'
+    echo "Generate key for ${node[i]}"
+    ssh $username@${node[i]} 'rm -f ~/.ssh/id_rsa*; echo -e "\n\n" | ssh-keygen -t rsa -f ~/.ssh/id_rsa'
 done
-#cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
 
 # Get pub key from other nodes
-for((i=0; i<${#node[*]}; i++))
+for((i=0; i<node_num; i++))
 do
     if [[ ${node[i]} = $local_host_name ]];then
-        echo "${node[i]} is myself"
         cp /$homedir/.ssh/id_rsa.pub /$homedir/.ssh/${node[i]}.key
         continue
     fi
@@ -93,7 +81,7 @@ do
 done
 
 # Append key to authorized_keys...
-for((i=0; i<${#node[*]}; i++))
+for((i=0; i<node_num; i++))
 do
     #reomve old keys before append new
     sed -i "/${node[i]}/d" /$homedir/.ssh/authorized_keys
@@ -102,9 +90,8 @@ do
 done
 
 let subloop=node_num-1
-echo "starting scp complete authorized_keys to ${node[0]}~${node[subloop]}"
-# Send final authorized_keys file to other nodes
-for((i=0; i<${#node[*]}; i++))
+echo "starting send complete authorized_keys to ${node[0]}~${node[subloop]}"
+for((i=0; i<node_num; i++))
 do
     if [[ ${node[i]} = $local_host_name ]];then
         echo "${node[i]} is myself"
@@ -116,6 +103,6 @@ do
 done
 
 # delete intermediate files
-#rm -rf /$homedir/.ssh/*.key
+rm -rf /$homedir/.ssh/*.key
 echo "all configuration finished..."
 set +e
