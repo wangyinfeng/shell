@@ -20,6 +20,7 @@ alias ..="cd .."
 alias ls="ls -Gh"
 alias la="ls -Ghal"
 alias ll="ls -Ghl"
+alias python="python3"
 #alias end.
 
 #show no-ASCII for the git-bash on windows
@@ -45,9 +46,14 @@ fi
 
 #TODO monitor the socket status
 #auto start when login the shell
-if [[ `uname` == "Darwin" ]]; then
-    if ! pgrep autossh > /dev/null; then
-        autossh -M 1081 -D 1080 -i /Users/w/.ssh/identification -qNnt 54b5fcb35973cab7770002e0@python-mfrc531.rhcloud.com 2>/var/log/proxy-err.log &
-    fi
-fi
+#if [[ `uname` == "Darwin" ]]; then
+#    if ! pgrep autossh > /dev/null; then
+#        autossh -M 1081 -D 1080 -i /Users/w/.ssh/identification -qNnt 54b5fcb35973cab7770002e0@python-mfrc531.rhcloud.com 2>/var/log/proxy-err.log &
+#    fi
+#fi
 
+
+# Setting PATH for Python 3.6
+# The original version is saved in .bash_profile.pysave
+PATH="/Library/Frameworks/Python.framework/Versions/3.6/bin:${PATH}"
+export PATH

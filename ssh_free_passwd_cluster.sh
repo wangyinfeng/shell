@@ -1,5 +1,7 @@
 #!/bin/bash
 set -e
+# need 'expect' package
+yum install -y expect
 
 # hostname for each node.
 # MUST be identical with the out put of `hostname`
