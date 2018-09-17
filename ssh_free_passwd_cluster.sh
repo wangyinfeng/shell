@@ -1,10 +1,16 @@
 #!/bin/bash
 set -e
 # need 'expect' package
-yum install -y expect
+rpm -qi expect
+if [ $? -eq 0 ]; then
+    echo "expect package has been installed"
+else
+    yum install -y expect
+fi
 
 # hostname for each node.
 # MUST be identical with the out put of `hostname`
+# TODO check name in node is hostname or not
 node=(c-0001 c-0002 c-0003)
 # username to be interconnected
 username=root
